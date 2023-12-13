@@ -1,4 +1,4 @@
-#---------------------------------------------------------------------------------------------------------------------------*
+﻿#---------------------------------------------------------------------------------------------------------------------------*
 #  Purpose        : Script for Creating Flexible server sync to Azure MySQL Single Server
 #  Schedule       : Ad-Hoc / On-Demand
 #  Date           : 05-DEC-2023
@@ -360,7 +360,7 @@ If($Validation.Status.Contains("FAILED"))
   #  Write-host "tenant" $tenant
    # Write-host "Subscription" $Subscription
 
-$loginoutput=az login --tenant $tenant --only-show-errors
+#$loginoutput=az login --tenant $tenant --only-show-errors
 
   #Write-host "loginoutput" $loginoutput
   if ($ServerList -eq $null) 
@@ -406,11 +406,14 @@ else
   {
 
     $hostname=$mysql.Host_Name
+    $MysqlUID=$mysql.User_ID
+    $MysqlPwd=$mysql.Password
 
     if($hostname -eq $null){
         Write-host "`n`nHost_Name for source single mysql server column for approved row can't be blank. Please supply single server name and re-run the script again!!!" -ForegroundColor Red
         exitcode
         } 
+      
 
     $port=$mysql.Port
 
@@ -467,6 +470,16 @@ else
   $SingleServerInfo="$PSScriptRoot/Output/$hostname.mysql.database.azure.com.json"
   $FlexServerInfo="$PSScriptRoot/Output/$mysqlFlexi.mysql.database.azure.com.json"  
     
+
+     $connectionSingle="server=$hostname.mysql.database.azure.com;uid=$MysqlUID@$hostname;pwd=$MysqlPwd;database=mysql;Allow User Variables=True;"
+  
+     $ConnectionMysql = New-Object MySql.Data.MySqlClient.MySqlConnection
+  
+     $connectionMysql.ConnectionString = $connectionSingle
+     $connectionMysql.Open()
+     $MyData=ExecMySqlQuery("SHOW VARIABLES LIKE 'log_bin';")
+     Write-host $MyData.Value
+
      az mysql server show --ids "/subscriptions/$Subscription/resourceGroups/$RG/providers/Microsoft.DBforMySQL/servers/$hostname" > $SingleServerInfo
      $ServerData= get-content "$SingleServerInfo" | ConvertFrom-Json
      
@@ -505,18 +518,18 @@ Invoke-Expression $Az_import
 # Record the end time
 Write-host "End Time::"$(Get-Date -format 's')
 
-start-sleep 10
+#start-sleep 10
 
 #write-host "if loop: $Success"
 
-if($Success -match "True")
+if($Success -match "False")
 {
 
-  $connectionstr="server=$mysqlFlexi.mysql.database.azure.com;uid=$uid@$mysqlFlexi;pwd=$pass;database=mysql;Allow User Variables=True;"
+  $connectionFlexi="server=$mysqlFlexi.mysql.database.azure.com;uid=$uid@$mysqlFlexi;pwd=$pass;database=mysql;Allow User Variables=True;"
   
   $Connection = New-Object MySql.Data.MySqlClient.MySqlConnection
   
-  $connection.ConnectionString = $connectionstr
+  $connection.ConnectionString = $connectionFlexi
 
 
  $tries = 0
