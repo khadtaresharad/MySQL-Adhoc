@@ -29,12 +29,6 @@
 #>
 Set-ExecutionPolicy Bypass -Scope currentuser
 CLS
- [System.Reflection.Assembly]::LoadWithPartialName("MySql.Data")
-if( -not ($Library = [System.Reflection.Assembly]::LoadWithPartialName("MySql.Data")) )
-        {
-            Throw "This function requires the ADO.NET driver for MySQL:`n`thttp://dev.mysql.com/downloads/connector/net/"
-        }
-        
 
 
 #---------------------------------------------------------PROGRAM BEGINS HERE----------------------------------------------------------
@@ -50,6 +44,10 @@ $folder = $PSScriptRoot
 Write-Host "`n======================================================================================="
 Start-Transcript -path  $folder\Logs\CMF_MySQL_Azure_SingleServer_to_Flexible_Automation_Transcript.txt -Append
 Write-Host "`n======================================================================================="
+
+
+        
+
 
 function exitCode
 {
@@ -115,66 +113,7 @@ function createFolder([string]$newFolder)
         }
     }
 
-    #Functions to fetch the json paths
-    function CMF-Read-Hashtable ([Hashtable]$InputHashTable){
-    	foreach ($h in $InputHashTable.GetEnumerator() ){
-		if ($h.Value -is [Array]){
-			CMF-Read-Nested-Array $h.Name $h.Value
-		}elseif ($h.Value -is [Hashtable]){
-			CMF-Read-Nested-Hashtable $h.Name $h.Value
-		}else{
-           
-			$global:row.Add($h.Name, $h.Value)
-		}
-	}
-	$global:alldata += $global:row
-	$global:row =@{}
-    }
-
-    function CMF-Read-Nested-Hashtable ([String]$prefix,[Hashtable]$InputNestedHashTable){
-	foreach ($h in $InputNestedHashTable.GetEnumerator()){
-		if ($h.Value -is [Array]){
-			CMF-Read-Nested-Array $h.Name $h.Value
-		}elseif ($h.Value -is [Hashtable]){
-            $newPrefix=-join($prefix,".",$h.Name)
-			CMF-Read-Nested-Hashtable $newPrefix $h.Value
-		}else{
-			$global:row.Add(-join($prefix,".",$h.Name), $h.Value)
-		}
-	    }
-    }
-
-    function CMF-Read-Array ([Array]$InputArray){
-    foreach ($a in $InputArray){
-		if($a -is [Hashtable]){
-			CMF-Read-Hashtable $a
-		}elseif ($a.Value -is [Array]){
-		    CMF-Read-Nested-Array $a.Name $a.Value 
-		}elseif ($a -is [Array]){
-			CMF-Process-Nested-Array $null $a	
-		}elseif($a.Value -is [Hashtable]){
-			CMF-Read-Nested-Hashtable $a.Name $a.Value
-		}else{
-			Write-Host "Process-Array :$($a.Value.pstypenames)"
-		}
-	    }
-    }
-
-    function CMF-Read-Nested-Array ([String]$prefix,[Array]$InputArray){
-    foreach ($a in $InputArray){
-		if($a -is [Hashtable]){
-		    CMF-Read-Nested-Hashtable $prefix $a
-		}elseif ($a.Value -is [Array]){
-			CMF-Read-Nested-Array $prefix $a.Value 
-		}elseif ($a -is [Array]){
-			CMF-Read-Nested-Array $prefix $a
-		}elseif($a.Value -is [Hashtable]){
-			CMF-Read-Nested-Hashtable $a.Name $a.Value
-		}else{
-			$global:row.Add(-join($prefix,".",$h.Name), $h.Value)
-		}
-	    }
-    }
+  
 
 
 function ExecMySqlQuery{
@@ -189,25 +128,36 @@ function ExecMySqlQuery{
     $MYSQLCommand.Connection=$Connection
     $MYSQLCommand.CommandText="$MySqlQuery;"
     $MYSQLDataAdapter.SelectCommand=$MYSQLCommand
-    $NumberOfDataSets=$MYSQLDataAdapter.Fill($MYSQLDataSet, "data")
-
+    #$NumberOfDataSets=$MYSQLDataAdapter.Fill($MYSQLDataSet, "data")
+    $MYSQLDataAdapter.Fill($MYSQLDataSet, "data")
     $Qout = [PSCustomObject] @{
     File = $MYSQLDataSet.tables[0].File
     Position   = $MYSQLDataSet.tables[0].Position
     Message  = $MYSQLDataSet.tables[0].message
    exception=$MYSQLDataSet.tables[0].exception
+   Value=$MYSQLDataSet.tables[0].Value
     }
     return $Qout
 }
 
 
 
-
+$Outdate = '{0}' -f ([system.string]::format('{0:yyyyMMddHHmmss}',(Get-Date)))
 createFolder $folder\Downloads\
 createFolder $folder\Logs\
 createFolder $folder\Output\
 createFolder $folder\Output\Single\
 
+Write-Host "======================================================================================="
+#Check for mysql-connector
+Write-Host "Check for mysql-connector"
+ [System.Reflection.Assembly]::LoadWithPartialName("MySql.Data")
+if( -not ($Library = [System.Reflection.Assembly]::LoadWithPartialName("MySql.Data")) )
+        {
+            Write-Host "`nmysql-connector-net Missing !`n" -ForegroundColor red
+            Write-Host "`nDownload from http://dev.mysql.com/downloads/connector/net/`n" -ForegroundColor red
+            Throw "This function requires the ADO.NET driver for MySQL:`n`thttp://dev.mysql.com/downloads/connector/net/"
+        }
 
 #Check for ImportExcel module
 Write-Host "======================================================================================="
@@ -283,9 +233,12 @@ else
         }
 
            try {
+           $Output_data =@()
          $ServerList = Import-Excel -Path $inputfile -WorksheetName Server_List 
         $Approved_Rows = $ServerList | Where-Object { $_.Approval_Status.toupper() -eq "YES" }
-        $ServerList=$Approved_Rows
+        $None_Approved = $ServerList | Where-Object { $_.Approval_Status.toupper() -eq "NO" }
+            $Output_data += New-Object psobject -Property @{Host_Name=$None_Approved.Host_Name;Status="Not Approved";Error_msg="NA"}
+         $ServerList=$Approved_Rows
          }
 
          catch {
@@ -351,19 +304,7 @@ If($Validation.Status.Contains("FAILED"))
  exitcode  
 }
 
-
-    
-   # if($Outfiledata -ne $null){
-   # $Outfiledata | select Host_Name,Resource_Group,Port,VCore,User_ID,Password,Auth_Type,DB_Name,Tenant,Subscription_ID,Approval_Status | Export-Excel $PSScriptRoot\CMF-MySQL_Single_Server_Input_file.xlsx -Append -WorksheetName "Server_List"
-   # }
-
-  #  Write-host "tenant" $tenant
-   # Write-host "Subscription" $Subscription
-
-#$loginoutput=az login --tenant $tenant --only-show-errors
-
-  #Write-host "loginoutput" $loginoutput
-  if ($ServerList -eq $null) 
+ if ($ServerList -eq $null) 
 {
     Write-Error "Either no approved servers on list or Error connecting to Tenant: $tenant and Subscription: $Subscription"
     exitcode
@@ -384,23 +325,7 @@ else
     #AZ Connect to provided subscription
     az account set --subscription $Subscription
      
-    #Server list fetch for Single Server
-    #$Single_list_Out = az mysql server list | Out-File $folder\Output\Single\Single_Server_List.json 
-    
-    #$ser_details = az mysql server list|ConvertFrom-Json
-      
-    #$ser_list = az mysql server list |ConvertFrom-Json | ConvertTo-HashTable
-    <#if($ser_list -is [Hashtable])
-    {
-        CMF-Read-Hashtable $ser_list
-    }else
-    {
-	    CMF-Read-Array $ser_list
-    }
-    
-    $Serverdata+=$alldata
-    $alldata=@()#>
-   
+       
     
   foreach ($mysql in $ServerList)
   {
@@ -467,35 +392,77 @@ else
          } 
  
  
-  $SingleServerInfo="$PSScriptRoot/Output/$hostname.mysql.database.azure.com.json"
-  $FlexServerInfo="$PSScriptRoot/Output/$mysqlFlexi.mysql.database.azure.com.json"  
+  $SingleServerInfo="$PSScriptRoot\Output\$hostname.mysql.database.azure.com_$Outdate.json"
+  $FlexServerInfo="$PSScriptRoot\Output\$mysqlFlexi.mysql.database.azure.com_$Outdate.json"  
+  
+  $SingleServerErr="$PSScriptRoot\Logs\$hostname.Error_log_$Outdate.log"
+   
+   
     
-
-     $connectionSingle="server=$hostname.mysql.database.azure.com;uid=$MysqlUID@$hostname;pwd=$MysqlPwd;database=mysql;Allow User Variables=True;"
-  
-     $ConnectionMysql = New-Object MySql.Data.MySqlClient.MySqlConnection
-  
-     $connectionMysql.ConnectionString = $connectionSingle
-     $connectionMysql.Open()
-     $MyData=ExecMySqlQuery("SHOW VARIABLES LIKE 'log_bin';")
-     Write-host $MyData.Value
-
-     az mysql server show --ids "/subscriptions/$Subscription/resourceGroups/$RG/providers/Microsoft.DBforMySQL/servers/$hostname" > $SingleServerInfo
-     $ServerData= get-content "$SingleServerInfo" | ConvertFrom-Json
-     
-     
      write-host "-----------------------------------------------------------------------------------------------------------"
      write-host "Processing Source Single server [$hostname]              "
      write-host "-----------------------------------------------------------------------------------------------------------"
-     write-host "tier:" $ServerData[0].sku.tier
-     write-host "Compute Generation:" $ServerData[0].sku.family
-     write-host "vCore:" $ServerData[0].sku.capacity
-     write-host "storage:" $ServerData[0].storageProfile.storageMb
-     write-host "Location:" $ServerData[0].location
-     write-host "sslEnforcement:" $ServerData[0].sslEnforcement
-     write-host "-----------------------------------------------------------------------------------------------------------"
+    #write-host "tier:" $ServerData[0].sku.tier
+    #write-host "Compute Generation:" $ServerData[0].sku.family
+    #write-host "vCore:" $ServerData[0].sku.capacity
+    #write-host "storage:" $ServerData[0].storageProfile.storageMb
+    #write-host "Location:" $ServerData[0].location
+    #write-host "sslEnforcement:" $ServerData[0].sslEnforcement
+    #write-host "-----------------------------------------------------------------------------------------------------------"
+   
+       if (($mysqlFlexi.length -gt 63) -or ($mysqlFlexi.length -lt 3) -or ($mysqlFlexi -match "[^a-z0-9-]"))
+       {
+       Write-host "`nError - The Flexible server name can contain only lowercase letters, numbers, and the hyphen (-) character. Minimum 3 characters and maximum 63`n"  -ForegroundColor Red
+       Set-Content -Path $SingleServerErr -Value "Error - The Flexible server name can contain only lowercase letters, numbers, and the hyphen (-) character. Minimum 3 characters and maximum 63"
+       continue
+       }
+     $connectionSingle="server=$hostname.mysql.database.azure.com;uid=$MysqlUID@$hostname;pwd=$MysqlPwd;database=mysql;Allow User Variables=True;"
+     #write-host $connectionSingle
+     $Connection = New-Object MySql.Data.MySqlClient.MySqlConnection
+  
+     $connection.ConnectionString = $connectionSingle
+     
+            
+        try{    
+
+          $Connection.Open()
+           Write-host "`nconnected successfully to host [$hostname]" -ForegroundColor Green  
+                              
         
-  $sslEnforcement=$ServerData[0].sslEnforcement
+           } catch {
+                              
+                     
+                    Write-host "Not able to connect Source MYSQL [$hostname].`nPlease refer log file @ $SingleServerErr`n" -ForegroundColor Red
+                    Write-Error $_
+                    Set-Content -Path $SingleServerErr -Value $_.Exception.Message
+                    $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$_"}
+                    continue; 
+                    
+            }
+     $MyData=ExecMySqlQuery("SHOW VARIABLES LIKE 'log_bin'")
+     
+     $connection.close()
+     $log_bin=$MyData.Value 
+     
+     #exitcode
+     az mysql server show --ids "/subscriptions/$Subscription/resourceGroups/$RG/providers/Microsoft.DBforMySQL/servers/$hostname" > $SingleServerInfo
+     $ServerData= get-content "$SingleServerInfo" | ConvertFrom-Json
+     
+    #Checking Binary logging on Source single mySQL server, Needed to configure replication
+
+    Write-host "Checking Binary logging on [$hostname]"
+     If ($log_bin -match "ON")
+     {
+      Write-host "`nBinary logging is already enabled on the source MySql [$hostname]`n" -ForegroundColor YELLOW 
+     }    
+     Else
+     {
+      Write-host "`nReplication cant be configured. Binary logging is disabled on the source MySql [$hostname].`nKindly verify that binary logging is enabled by running ""SHOW VARIABLES LIKE 'log_bin';""" -ForegroundColor Red 
+     Write-host "Refer: https://learn.microsoft.com/en-us/azure/mysql/single-server/how-to-data-in-replication`n" -ForegroundColor Blue
+     "Replication cant be configured. Binary logging is disabled on the source MySql [$hostname]. Kindly verify that binary logging is enabled by running ""SHOW VARIABLES LIKE 'log_bin';""" >> $SingleServerErr
+     continue;
+     }
+    $sslEnforcement=$ServerData[0].sslEnforcement
   
    
   if($mysqlFlexi -eq $null){
@@ -503,27 +470,37 @@ else
         exitcode
         } 
    
-   Write-host "Cloning host [$hostname] to Flexi server [$mysqlFlexi]" -ForegroundColor Green  
-
- 
-Write-host "`nStart Time::"$(Get-Date -format 's')
+    Write-host "Cloning host [$hostname] to Flexi server [$mysqlFlexi]" -ForegroundColor Green  
+   
+    Write-host "`n----------Start Time::$(Get-Date -format 's')-----------`n"
 
 
    # Create Flexible server :Invoke-Expression  $Az_import
   
 $Az_import += '; $Success=$?'
-Invoke-Expression $Az_import
-
+try{
+Invoke-Expression $Az_import 
+}
+catch
+{
+ Write-Error $_
+}
 
 # Record the end time
-Write-host "End Time::"$(Get-Date -format 's')
+ Write-host "`n----------End Time::$(Get-Date -format 's')-----------`n"
 
 #start-sleep 10
 
 #write-host "if loop: $Success"
 
-if($Success -match "False")
+if($Success -match "True")
 {
+   az mysql flexible-server show --ids "/subscriptions/$Subscription/resourceGroups/$RG/providers/Microsoft.DBforMySQL/flexibleServers/$mysqlFlexi" > $FlexServerInfo
+   
+    Write-host "`n Refer ""$FlexServerInfo"" to get the property of provisioned mysql flexible host [$mysqlFlexi]`n"
+
+    $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="SUCCESS";Error_msg="NA"}
+     
 
   $connectionFlexi="server=$mysqlFlexi.mysql.database.azure.com;uid=$uid@$mysqlFlexi;pwd=$pass;database=mysql;Allow User Variables=True;"
   
@@ -536,12 +513,11 @@ if($Success -match "False")
     while ($tries -lt 4) 
     {
         try{    
-
+            
           $Connection.Open()
            Write-host "`nconnected successfully to host [$mysqlFlexi]" -ForegroundColor Green  
            
-                      az mysql flexible-server show --ids "/subscriptions/$Subscription/resourceGroups/$RG/providers/Microsoft.DBforMySQL/flexibleServers/$mysqlFlexi" > $FlexServerInfo
-   
+                     
            BREAK
            } catch {
                               
@@ -552,8 +528,10 @@ if($Success -match "False")
                     } 
                     else
                     {
-                    Write-host "Failed to connect [$mysqlFlexi]" -ForegroundColor Red 
+                    Write-host "Failed to connect [$mysqlFlexi], Please refer log file @ $SingleServerErr" -ForegroundColor Red 
                     Write-Error $_
+                    Set-Content -Path $SingleServerErr -Value $_.Exception.Message
+        
                     }
                 start-sleep 10
                 $tries++
@@ -591,7 +569,7 @@ $MyData=ExecMySqlQuery("$command;")
 
 If (!$MyData.exception)
 {
-Write-host "Call mysql.az_replication_change_master executed successfully!!" -ForegroundColor Green
+#Write-host "Call mysql.az_replication_change_master executed successfully!!" -ForegroundColor Green
 Write-host $MyData.message -ForegroundColor Green
 }
 else
@@ -609,7 +587,7 @@ $MyData=ExecMySqlQuery("$command;")
 
 If (!$MyData.exception)
 {
-Write-host "call mysql.az_replication_start executed successfully!!" -ForegroundColor Green
+#Write-host "call mysql.az_replication_start executed successfully!!" -ForegroundColor Green
 Write-host $MyData.message -ForegroundColor Green
 }
 else
@@ -619,9 +597,16 @@ write-host "Error Message:"$MyData.message -ForegroundColor Red
 }
 
 
+
 $Connection.Close()
+}
+else
+{
+ $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="NA"}
 }
 
 }
+Write-host "`n---------------Refer below for final Status table--------------------------`n"
+Write-Host ($Output_data | select Host_Name,Status,Error_Msg| Format-Table -AutoSize -wrap| Out-String)  
     Stop-Transcript
 }
