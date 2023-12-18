@@ -309,18 +309,19 @@ If($Validation.Status.Contains("FAILED"))
     Write-Error "Either no approved servers on list or Error connecting to Tenant: $tenant and Subscription: $Subscription"
     exitcode
 }
+#AZ login to corresponsing Tenant and subscription
+
+$loginoutput=az login --tenant $tenant --only-show-errors
+if (!$loginoutput) 
+{
+    Write-Error "Error connecting to Tenant: $tenant and Subscription: $Subscription"
+    exitcode
+}
+
 else
 {
     $Serverdata=@()
-    $db_data=@()
-    $DBList=@()
-    $ServerConf=@()
-    $confdata=@()
-    $ADAdmin=@()
-    $Admin=@()
-    $Firewall=@()
-    $Replica=@()
-    $dbdata=@()
+     
 
     #AZ Connect to provided subscription
     az account set --subscription $Subscription
@@ -478,13 +479,8 @@ else
    # Create Flexible server :Invoke-Expression  $Az_import
   
 $Az_import += '; $Success=$?'
-try{
+
 Invoke-Expression $Az_import 
-}
-catch
-{
- Write-Error $_
-}
 
 # Record the end time
  Write-host "`n----------End Time::$(Get-Date -format 's')-----------`n"
@@ -499,7 +495,6 @@ if($Success -match "True")
    
     Write-host "`n Refer ""$FlexServerInfo"" to get the property of provisioned mysql flexible host [$mysqlFlexi]`n"
 
-    $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="SUCCESS";Error_msg="NA"}
      
 
   $connectionFlexi="server=$mysqlFlexi.mysql.database.azure.com;uid=$uid@$mysqlFlexi;pwd=$pass;database=mysql;Allow User Variables=True;"
@@ -531,14 +526,16 @@ if($Success -match "True")
                     Write-host "Failed to connect [$mysqlFlexi], Please refer log file @ $SingleServerErr" -ForegroundColor Red 
                     Write-Error $_
                     Set-Content -Path $SingleServerErr -Value $_.Exception.Message
-        
+                    $FlexConnFailed=1
+                    $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$_"}
                     }
                 start-sleep 10
                 $tries++
          }
     }
 
-
+if($FlexConnFailed -ne 1)
+{
 Write-host "Executing ""call mysql.az_show_binlog_file_and_pos_for_mysql_import""" -ForegroundColor Blue
 
 $MyData=ExecMySqlQuery("call mysql.az_show_binlog_file_and_pos_for_mysql_import;")
@@ -550,9 +547,23 @@ $Position=$MyData.position
 Write-host "`nFile:"$binLogFile
 Write-host "Position:"$Position
 
+
 If ($sslEnforcement -eq "Enabled")
   {
+
+  $cert = $(Write-Host "Input your certificate path (e.g. C:\cert\DigiCertGlobalRootG2.crt.pem; Leave blank for Default ./Validation_Scripts/DigiCertGlobalRootG2.crt.pem)::" -ForegroundColor Red -BackgroundColor Yellow -NoNewLine; Read-Host)
+  #$cert=Read-Host -Prompt 'Input your certificate path  name(Leave blank for Default ./Validation_Scripts/DigiCertGlobalRootG2.crt.pem):' -ForegroundColor Blue
+
+  If($cert -eq "")
+  {
   $cert=Get-Content $folder/Validation_Scripts/DigiCertGlobalRootG2.crt.pem -Raw
+  }
+  Else
+  {
+  $cert=Get-Content $cert -Raw
+ 
+  }
+  
   $command="call mysql.az_replication_change_master('$hostname.mysql.database.azure.com', '$uid@$hostname', '$pass', $port, '$binLogFile', $Position, '$cert')"
   Write-host "`nExecuting... " -ForegroundColor Blue
   Write-host "call mysql.az_replication_change_master('$hostname.mysql.database.azure.com', '$uid@$hostname', '*****', $port, '$binLogFile', $Position, '*****')" -ForegroundColor Blue
@@ -589,6 +600,8 @@ If (!$MyData.exception)
 {
 #Write-host "call mysql.az_replication_start executed successfully!!" -ForegroundColor Green
 Write-host $MyData.message -ForegroundColor Green
+$Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="SUCCESS";Error_msg="NA"}
+    
 }
 else
 {
@@ -596,7 +609,7 @@ Write-host "`nFailed to execute ""call mysql.az_replication_start""`n" -Foregrou
 write-host "Error Message:"$MyData.message -ForegroundColor Red
 }
 
-
+}
 
 $Connection.Close()
 }
