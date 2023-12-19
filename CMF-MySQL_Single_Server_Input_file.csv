@@ -1,0 +1,4 @@
+Host_Name,Resource_Group,Port,VCore,User_ID,Password,DB_Name,Destination,Approval_Status,Tier,sku-name,storage-size,admin-user,admin-password
+promysqlsingle,RG-ALLRegion-Automation-Team,,,sqltestuser,Mindtree123!,mysql,promysqlFlexible,YES,Burstable,Standard_B2s,20,,
+promysqlsingle,RG-ALLRegion-Automation-Team,,,sqltestuser,Mindtree123!,mysql,promysqlFlexible1,NO,GeneralPurpose,Standard_D8ads_v5,,,
+promysqlsingle1,RG-ALLRegion-Automation-Team,,,sqltestuser,Mindtree123!,mysql,promysqlFlexible1,NO,Burstable,Standard_E2ads_v5,20,,

@@ -22,7 +22,7 @@
 <#
     Change Log
     ----------
-•	Customer consent to install ImportExcel PS Module and Azure CLI
+•	Customer consent to install Azure CLI
 •
 
         
@@ -69,51 +69,6 @@ function createFolder([string]$newFolder)
     }
 }
 
-#Function to convert json value to hashtable
-
-    function ConvertTo-Hashtable {
-    [CmdletBinding()]
-    [OutputType('hashtable')]
-    param (
-        [Parameter(ValueFromPipeline)]
-        $InputObject
-          )
-
-        process {
-        if ($null -eq $InputObject) 
-        {
-            return $null
-         }
-        
-        if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string])
-        {
-            $collection = @(
-                foreach ($object in $InputObject) {
-                    ConvertTo-Hashtable -InputObject $object
-                }
-                )
-
-         Write-Output -NoEnumerate $collection
-        }
-        elseif ($InputObject -is [psobject]) 
-        {
-            $hash = @{}
-            
-            foreach ($property in $InputObject.PSObject.Properties) 
-            {
-                $hash[$property.Name] = ConvertTo-Hashtable -InputObject $property.Value
-            }
-            
-             $hash
-        } 
-        else 
-        {
-            $InputObject
-        }
-        }
-    }
-
-  
 
 
 function ExecMySqlQuery{
@@ -159,47 +114,11 @@ if( -not ($Library = [System.Reflection.Assembly]::LoadWithPartialName("MySql.Da
             Throw "This function requires the ADO.NET driver for MySQL:`n`thttp://dev.mysql.com/downloads/connector/net/"
         }
 
-#Check for ImportExcel module
-Write-Host "======================================================================================="
-Write-Host "`nChecking for ImportExcel Module"
-if((Get-Module -ListAvailable).Name -notcontains "ImportExcel")
-{
-    Write-Host "Excel PS module not found.."  -BackgroundColor Red
-    Write-Host "=======================================================================================" 
-    $response = read-host "Do you want to continue download and install Excel PS Module? 'Y' or 'N' : "
-
-    if($response.ToUpper() -eq "Y")
-    {
-    Write-Host "Downloading ImportExcel PS Module..."
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
-    try { Install-Module -Name ImportExcel} 
-            catch {
-
-               Write-Host "======================================================================================="  
-               Write-Host "Error while downloading Importexcel package , Please make sure computer is connected to internet "  -ForegroundColor Red  
-               Write-Host "Or "  -ForegroundColor Red 
-               Write-Host "Please install it manually "  -ForegroundColor Red   
-               Write-Host "======================================================================================="  
-               Write-Host "Please see the error below & execution has been stopped          " 
-            throw  $_.Exception.Response.StatusCode.Value__
-            }
-    
-    Write-Host "Downloaded."
-    }
-    else
-    {
-        Write-Host "Excel PS module is required for the execution. Exiting..."
-        exitCode
-    }
-    <#Expand-Archive "$folder\Downloads\ImportExcel.zip" "$folder\Downloads\"
-    move "$folder\Downloads\ImportExcel-7.8.0" "C:\Program Files\WindowsPowerShell\Modules\ImportExcel"
-    Import-Module ImportExcel#>
-}
 
 
-# Read the input config Excel and validate
-$inputfile = $PSScriptRoot+"\CMF-MySQL_Single_Server_Input_file.xlsx" 
+# Read the input config CSV and validate
+$inputfile = $PSScriptRoot+"\CMF-MySQL_Single_Server_Input_file.csv" 
+$Configfile = $PSScriptRoot+"\Azure_Subscription.csv" 
 Write-Host "Input file is $inputfile." -ForegroundColor Green
 Write-Host "===================================================================="  
 
@@ -219,13 +138,13 @@ if (-not(Test-Path -Path $inputfile -PathType Leaf)) {
 else
 {
      try {
-         $ConfigList = Import-Excel -Path $inputfile -WorksheetName Azure_Subscription 
+         $ConfigList = Import-Csv -Path $Configfile
 
          }
 
          catch {
          Write-Host "=================================================================================="  
-         Write-Host "The file [$inputfile] does not have the woksheet named Azure_Subscription or Server_List"  -BackgroundColor Red 
+         Write-Host "Unable to read file [$Configfile] or this file does not exist"  -BackgroundColor Red 
          Write-Host "=================================================================================="  
          #Write-Host "Please see the error below & Azure MySQL to Flexible has been stopped          "  
          #throw $_.Exception.Message
@@ -234,7 +153,7 @@ else
 
            try {
            $Output_data =@()
-         $ServerList = Import-Excel -Path $inputfile -WorksheetName Server_List 
+         $ServerList = Import-csv -Path $inputfile
         $Approved_Rows = $ServerList | Where-Object { $_.Approval_Status.toupper() -eq "YES" }
         $None_Approved = $ServerList | Where-Object { $_.Approval_Status.toupper() -eq "NO" }
             $Output_data += New-Object psobject -Property @{Host_Name=$None_Approved.Host_Name;Status="Not Approved";Error_msg="NA"}
@@ -243,7 +162,7 @@ else
 
          catch {
          Write-Host "=================================================================================="  
-         Write-Host "The file [$inputfile] does not have the woksheet named Azure_Subscription or Server_List"  -BackgroundColor Red 
+         Write-Host "Unable to read file [$inputfile] or it does not have the valid Server_List"  -BackgroundColor Red 
          Write-Host "=================================================================================="  
          #Write-Host "Please see the error below & Azure MySQL to Flexible has been stopped          "  
          #throw $_.Exception.Message
@@ -256,9 +175,9 @@ else
      if (($ColumnList.Contains("Tenant")) -and
         ($ColumnList.Contains("Subscription_ID"))){
 
-        Write-Host "Excel validation is done successfully " 
+        Write-Host "Config file validation is done successfully " 
         }
-     else {Write-Host "There are mismatches in the Excel column . Kindly check and retrigger the automation "  -BackgroundColor Red
+     else {Write-Host "There are mismatches in the config CSV column . Kindly check and retrigger the automation "  -BackgroundColor Red
            exitCode}
 
 $tenant=$ConfigList[0].'Tenant'
@@ -281,15 +200,8 @@ Unblock-File $folder/Validation_Scripts/azurecli.ps1
       
 # Check PowerShell version
 $Validation=@()
-$Outfiledata=@()
-$Outputexcel=@()
-$DBListData=@()
-$AdAdminData=@()
 
-$alldata =@()
-$row=@{}
-$FWData=@()
-$ServerConfigData=@()
+
 $Validation+=& "$folder/Validation_Scripts/Check_PowerShell_Version.ps1"
 $Validation+=& "$folder/Validation_Scripts/azurecli.ps1"
 
@@ -311,7 +223,7 @@ If($Validation.Status.Contains("FAILED"))
 }
 #AZ login to corresponsing Tenant and subscription
 
-$loginoutput=az login --tenant $tenant --only-show-errors
+  $loginoutput=az login --tenant $tenant --only-show-errors
 if (!$loginoutput) 
 {
     Write-Error "Error connecting to Tenant: $tenant and Subscription: $Subscription"
@@ -355,8 +267,7 @@ else
   $Az_import="az mysql flexible-server import create --data-source-type ""mysql_single"" --data-source ""$hostname"" --resource-group ""$RG"" --name ""$mysqlFlexi"""
 
   $tier=$mysql.Tier
-
-   
+     
   if ($tier -ne $null)     { $Az_import=$Az_import+" --tier "+"$tier"  } 
  
   $sku=$mysql."sku-name"
@@ -369,9 +280,10 @@ else
  
   $admin_user=$mysql."admin-user"
  
-       if ($admin_user -eq $null) 
+       if ($admin_user -eq "") 
         {
         $uid=$mysql.User_ID
+       
         }
         else
         {
@@ -382,9 +294,10 @@ else
   $admin_pass=$mysql."admin-password"
 
  
-       if ($admin_pass -eq $null)
+       if ($admin_pass -eq "")
          {
          $pass=$mysql.Password
+        
          }
      else
          {
@@ -426,11 +339,10 @@ else
             
         try{    
 
-          $Connection.Open()
+           $Connection.Open()
            Write-host "`nconnected successfully to host [$hostname]" -ForegroundColor Green  
                               
-        
-           } catch {
+             } catch {
                               
                      
                     Write-host "Not able to connect Source MYSQL [$hostname].`nPlease refer log file @ $SingleServerErr`n" -ForegroundColor Red
@@ -478,13 +390,15 @@ else
 
    # Create Flexible server :Invoke-Expression  $Az_import
   
-$Az_import += '; $Success=$?'
+$Az_import += '; $Success=$? '
 
 Invoke-Expression $Az_import 
+
 
 # Record the end time
  Write-host "`n----------End Time::$(Get-Date -format 's')-----------`n"
 
+  
 #start-sleep 10
 
 #write-host "if loop: $Success"
