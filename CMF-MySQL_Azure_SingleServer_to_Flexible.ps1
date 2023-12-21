@@ -40,24 +40,22 @@ write-host "                                                                    
 Write-Host " "
 
 $folder = $PSScriptRoot
+$Outdate = '{0}' -f ([system.string]::format('{0:yyyyMMddHHmmss}',(Get-Date)))
 
 Write-Host "`n======================================================================================="
-Start-Transcript -path  $folder\Logs\CMF_MySQL_Azure_SingleServer_to_Flexible_Automation_Transcript.txt -Append
+Start-Transcript -path  $folder\Logs\CMF_MySQL_Azure_SingleServer_to_Flexible_Automation_Transcript_$Outdate.txt -Append
 Write-Host "`n======================================================================================="
 
-
-        
-
-
+  
 function exitCode
 {
     Write-Host "-Ending Execution"
     Stop-Transcript
     exit
 }
-
-function createFolder([string]$newFolder) 
-{
+ 
+    function createFolder([string]$newFolder) 
+    {
    if(Test-Path $newFolder)
     {
         Write-Host "-Folder'$newFolder' Exist..."
@@ -67,7 +65,7 @@ function createFolder([string]$newFolder)
         New-Item $newFolder -ItemType Directory
         Write-Host "-$newFolder folder created..."
     }
-}
+    }
 
 
 
@@ -97,7 +95,6 @@ function ExecMySqlQuery{
 
 
 
-$Outdate = '{0}' -f ([system.string]::format('{0:yyyyMMddHHmmss}',(Get-Date)))
 createFolder $folder\Downloads\
 createFolder $folder\Logs\
 createFolder $folder\Output\
@@ -113,84 +110,6 @@ if( -not ($Library = [System.Reflection.Assembly]::LoadWithPartialName("MySql.Da
             Write-Host "`nDownload from http://dev.mysql.com/downloads/connector/net/`n" -ForegroundColor red
             Throw "This function requires the ADO.NET driver for MySQL:`n`thttp://dev.mysql.com/downloads/connector/net/"
         }
-
-
-
-# Read the input config CSV and validate
-$inputfile = $PSScriptRoot+"\CMF-MySQL_Single_Server_Input_file.csv" 
-$Configfile = $PSScriptRoot+"\Azure_Subscription.csv" 
-Write-Host "Input file is $inputfile." -ForegroundColor Green
-Write-Host "===================================================================="  
-
-
-if (-not(Test-Path -Path $inputfile -PathType Leaf)) {
-    try {    
-         Write-Host "======================================================================================="  
-         Write-Host "Unable to read the input file [$inputfile]. Check file & its permission...  "  -BackgroundColor Red
-         Write-Host "======================================================================================="  
-         Write-Host "Please see the error below Execution has been stopped          "  
-         throw $_.Exception.Message                      
-    }
-    catch {
-         throw $_.Exception.Message
-    }
- }
-else
-{
-     try {
-         $ConfigList = Import-Csv -Path $Configfile
-
-         }
-
-         catch {
-         Write-Host "=================================================================================="  
-         Write-Host "Unable to read file [$Configfile] or this file does not exist"  -BackgroundColor Red 
-         Write-Host "=================================================================================="  
-         #Write-Host "Please see the error below & Azure MySQL to Flexible has been stopped          "  
-         #throw $_.Exception.Message
-         exitcode
-        }
-
-           try {
-           $Output_data =@()
-         $ServerList = Import-csv -Path $inputfile
-        $Approved_Rows = $ServerList | Where-Object { $_.Approval_Status.toupper() -eq "YES" }
-        $None_Approved = $ServerList | Where-Object { $_.Approval_Status.toupper() -eq "NO" }
-            $Output_data += New-Object psobject -Property @{Host_Name=$None_Approved.Host_Name;Status="Not Approved";Error_msg="NA"}
-         $ServerList=$Approved_Rows
-         }
-
-         catch {
-         Write-Host "=================================================================================="  
-         Write-Host "Unable to read file [$inputfile] or it does not have the valid Server_List"  -BackgroundColor Red 
-         Write-Host "=================================================================================="  
-         #Write-Host "Please see the error below & Azure MySQL to Flexible has been stopped          "  
-         #throw $_.Exception.Message
-         exitcode
-        }
-
- }    
- 
- $ColumnList=$ConfigList | Get-Member -MemberType NoteProperty | %{"$($_.Name)"}
-     if (($ColumnList.Contains("Tenant")) -and
-        ($ColumnList.Contains("Subscription_ID"))){
-
-        Write-Host "Config file validation is done successfully " 
-        }
-     else {Write-Host "There are mismatches in the config CSV column . Kindly check and retrigger the automation "  -BackgroundColor Red
-           exitCode}
-
-$tenant=$ConfigList[0].'Tenant'
-if ([string]::IsNullOrWhitespace($tenant)){
-Write-Host "'Tenant' is not valid in the Azure_Subscription worksheet. Kindly check and retrigger the automation  "  -BackgroundColor Red 
-exitCode
-}
-
-$Subscription=$ConfigList[0].'Subscription_ID'
-if ([string]::IsNullOrWhitespace($Subscription)){
-Write-Host "'Subscription_ID' is not valid in the Azure_Subscription worksheet. Kindly check and retrigger the automation  "  -BackgroundColor Red 
-exitCode
-}
 
 
 Unblock-File $folder/Validation_Scripts/Check_PowerShell_Version.ps1
@@ -216,14 +135,92 @@ If($Validation.Status.Contains("FAILED"))
  exitcode  
 }
 
- if ($ServerList -eq $null) 
+
+
+
+
+Write-Host "Please select from below options to perform MySQL Single server to Flexible server Migration" -ForegroundColor Green
+Write-Host "===================================================================="
+Write-Host "1. Generate list of MySQL single servers for provided tenant and subscription input file"
+Write-Host "2. MySQL Single server input list is ready for Flexible server provisioning & Migration"
+Write-Host "3. Exit"
+
+$validInputs = "1", "2", "3"
+do {
+    $inputresponse = Read-Host -Prompt "Enter value"
+    if(-not $validInputs.Contains($inputresponse)){write-host "Please select the choice between 1 - 3"}
+} until ($validInputs.Contains($inputresponse))
+   
+$taskToPerform = $inputresponse
+
+ 
+$exitvalue = "3"
+if($exitvalue.Contains($taskToPerform))
 {
-    Write-Error "Either no approved servers on list or Error connecting to Tenant: $tenant and Subscription: $Subscription"
-    exitcode
+exitcode
+}
+else
+{
+
+# Read the input config CSV and validate
+$Configfile = $PSScriptRoot+"\Azure_Subscription.csv" 
+Write-Host "`n`nInput config file is $Configfile." -ForegroundColor Green
+#Write-Host "===================================================================="  
+
+
+if (-not(Test-Path -Path $Configfile -PathType Leaf)) {
+    try {    
+         Write-Host "======================================================================================="  
+         Write-Host "Unable to read the Configfile file [$Configfile]. Check file & its permission...  "  -BackgroundColor Red
+         Write-Host "======================================================================================="  
+         Write-Host "Please see the error below Execution has been stopped          "  
+         throw $_.Exception.Message                      
+    }
+    catch {
+         throw $_.Exception.Message
+    }
+ }
+else
+{
+     try {
+         $ConfigList = Import-Csv -Path $Configfile
+
+         }
+
+         catch {
+         Write-Host "=================================================================================="  
+         Write-Host "Unable to read file [$Configfile] or this file does not exist"  -BackgroundColor Red 
+         Write-Host "=================================================================================="  
+         #Write-Host "Please see the error below & Azure MySQL to Flexible has been stopped          "  
+         #throw $_.Exception.Message
+         exitcode
+        }
+
+}
+ $ColumnList=$ConfigList | Get-Member -MemberType NoteProperty | %{"$($_.Name)"}
+     if (($ColumnList.Contains("Tenant")) -and
+        ($ColumnList.Contains("Subscription_ID"))){
+
+        Write-Host "Config file validation is done successfully " 
+        }
+     else {Write-Host "There are mismatches in the config CSV column . Kindly check and retrigger the automation "  -BackgroundColor Red
+           exitCode}
+
+$tenant=$ConfigList[0].'Tenant'
+if ([string]::IsNullOrWhitespace($tenant)){
+Write-Host "'Tenant' is not valid in the Azure_Subscription worksheet. Kindly check and retrigger the automation  "  -BackgroundColor Red 
+exitCode
+}
+
+$Subscription=$ConfigList[0].'Subscription_ID'
+if ([string]::IsNullOrWhitespace($Subscription)){
+Write-Host "'Subscription_ID' is not valid in the Azure_Subscription worksheet. Kindly check and retrigger the automation  "  -BackgroundColor Red 
+exitCode
 }
 #AZ login to corresponsing Tenant and subscription
 
-  $loginoutput=az login --tenant $tenant --only-show-errors
+$loginoutput = az login --tenant $tenant --only-show-errors
+
 if (!$loginoutput) 
 {
     Write-Error "Error connecting to Tenant: $tenant and Subscription: $Subscription"
@@ -233,25 +230,206 @@ if (!$loginoutput)
 else
 {
     $Serverdata=@()
-     
+    $Outfiledata=@()    
 
     #AZ Connect to provided subscription
     az account set --subscription $Subscription
-     
-       
+    }
+
+$DetailedInfo = "1"
+if($DetailedInfo.Contains($taskToPerform))
+{
+
+
+    #Server list fetch for Single Server
+    $Single_list_Out = az mysql server list | Out-File $folder\Output\Single\Single_Server_List.json 
+    
+    $ser_details = az mysql server list|ConvertFrom-Json
+    
+ $i = 0
+write-host "`nBelow are list of MySQL single server on tenant [$tenant] and Subscription [$Subscription].`n" -ForegroundColor Green
+while ($ser_details[$i].fullyQualifiedDomainName -ne $null)
+{
+
+
+write-host $ser_details[$i].fullyQualifiedDomainName
+
+$Host_Name	= $ser_details[$i].name
+$Resource_Group	=$ser_details[$i].resourceGroup
+
+$VCore	=$ser_details[$i].sku.capacity
+$Tier = $ser_details[$i].sku.tier
+$User_ID=$ser_details[$i].administratorLogin	
+
+
+$Outfiledata+=New-Object psobject -Property @{Host_Name=$Host_Name;Resource_Group=$Resource_Group;Port="3306";Source_Tier=$Tier;VCore=$VCore;User_ID=$User_ID;Password="****";Destination="";Approval_Status="No";Tier="";"sku-name"="";"storage-size"="";"admin-user"="";"admin-password"="";"SSL_Cert"=""}
+
+      
+$i++
+}
+ if($Outfiledata -ne $null){
+    $Outfiledata | select Host_Name,Resource_Group,Port,Source_Tier,VCore,User_ID,Password,Destination,Approval_Status,Tier,sku-name,storage-size,admin-user,admin-password,SSL_Cert | Export-Csv -NoTypeInformation $PSScriptRoot\CMF-MySQL_Single_Server_Input_file.csv
+    
+    write-host "`nMySQL Single server input file has been created @ [$PSScriptRoot\Server_List.csv]"    -ForegroundColor DarkYellow   
+     write-host "`nUpdate necessary fields [User_ID |Password | Destination | Approval_Status are Mandatory] and re-execute script with option 2 for flexible server provisioning & Migration.`n"   -ForegroundColor DarkYellow          
+
+    }
+ 
+}
+}
+
+#If Option 2 -----MySQL Single server list is ready with approved servers from list for Flexible server migration
+
+$DetailedInfo = "2"
+if($DetailedInfo.Contains($taskToPerform))
+{
+
+#Validating exported mysql single server input file
+$inputfile = $PSScriptRoot+"\CMF-MySQL_Single_Server_Input_file.csv" 
+
+
+
+if (-not(Test-Path -Path $inputfile -PathType Leaf)) {
+    try {    
+         Write-Host "======================================================================================="  
+         Write-Host "Unable to read the MySQL Input file [$inputfile]. Check file & its permission...  "  -BackgroundColor Red
+         Write-Host "======================================================================================="  
+         Write-Host "Please see the error below Execution has been stopped          "  
+         throw $_.Exception.Message                      
+    }
+    catch {
+         throw $_.Exception.Message
+    }
+ }
+else
+{
+     try {
+           $Output_data =@()
+            $ServerList = Import-Csv -Path $inputfile  
+        $Approved_Rows = $ServerList | Where-Object { $_.Approval_Status.toupper() -eq "YES" }
+        $None_Approved = $ServerList | Where-Object { $_.Approval_Status.toupper() -eq "NO" }
+            $Output_data += New-Object psobject -Property @{Host_Name=$None_Approved.Host_Name;Status="Not Approved";Error_msg="NA"}
+         $ServerList=$Approved_Rows
+
+         }
+
+         catch {
+         Write-Host "=================================================================================="  
+         Write-Host "Unable to read file [$inputfile] or it does not have the valid Server_List"  -BackgroundColor Red 
+         Write-Host "=================================================================================="  
+         #Write-Host "Please see the error below & Azure MySQL to Flexible has been stopped          "  
+         #throw $_.Exception.Message
+         exitcode
+        }
+
+}
+
+
+
+
+
+Write-Host "`nMySQL single server input file is $inputfile." -ForegroundColor Green
+
+
+
+ $ColumnList=$ServerList | Get-Member -MemberType NoteProperty | %{"$($_.Name)"}
+     if (($ColumnList.Contains("Host_Name")) -and
+        ($ColumnList.Contains("User_ID")) -and
+        ($ColumnList.Contains("Password")) -and
+        ($ColumnList.Contains("Source_Tier")) -and
+        ($ColumnList.Contains("Port")) -and
+         ($ColumnList.Contains("Destination")) -and
+          ($ColumnList.Contains("Port")) -and
+         ($ColumnList.Contains("Tier")) -and
+          ($ColumnList.Contains("sku-name")) -and
+           ($ColumnList.Contains("storage-size")) -and
+            ($ColumnList.Contains("admin-user")) -and
+             ($ColumnList.Contains("admin-password")) -and
+        ($ColumnList.Contains("Resource_Group")) -and
+        ($ColumnList.Contains("Approval_Status"))){
+
+        Write-Host "Input mysql servers list validation completed successfully " 
+        }
+     else {
+     Write-Host "There are missmatches in the column names. Kindly check and retrigger the automation "  -ForegroundColor Red 
+           exitCode
+           }
+  
+
+
+
+
+ if ($ServerList -eq $null) 
+{
+    write-host "None of the hosts are approved to proceed . Terminating the execution..." -ForegroundColor Red
+
+exitcode
+}
+else
+{
+Write-host "`n`nBelow list of MySQL servers are approved for flexible server migration"
+
+$ServerList | select Host_name, Resource_Group, Destination, Approval_Status | Format-Table
+
+
+
+ $validInputs = "Y", "y", "N", "n"
+do {
+     $response = read-host "Enter 'Y' to continue or 'N' to abort"
+    if(-not $validInputs.Contains($response)){write-host "Invalid Entry...try again"}
+} until ($validInputs.Contains($response))
+
+
+if($response.tolower().Contains("n"))
+{
+exitcode
+}
+else
+{
+Write-Host "Proceeding for Flexible server Provisioning and Migration..." -BackgroundColor Green
+}
+
+
+}
+
+		
+
+
     
   foreach ($mysql in $ServerList)
   {
+    
+		$hostname=$mysql.'Host_Name'
+		if ([string]::IsNullOrWhitespace($hostname)){
+			Write-Host "'Host_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
+			Continue
+		}
+		
+		$MysqlUID=$mysql.'User_ID'
+		if ([string]::IsNullOrWhitespace($MysqlUID)){
+			Write-Host "'User_ID' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
+			Continue
+		}
+	
+		$MysqlPwd=$mysql.'Password'
+		if ([string]::IsNullOrWhitespace($MysqlPwd)){
+			Write-Host "'Password' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
+			Continue
+		}
 
-    $hostname=$mysql.Host_Name
-    $MysqlUID=$mysql.User_ID
-    $MysqlPwd=$mysql.Password
+	    $mysqlFlexi=$mysql.Destination.toLower()
+		if ([string]::IsNullOrWhitespace($mysqlFlexi)){
+			Write-Host "'Destination' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
+			Continue
+		}
 
-    if($hostname -eq $null){
-        Write-host "`n`nHost_Name for source single mysql server column for approved row can't be blank. Please supply single server name and re-run the script again!!!" -ForegroundColor Red
-        exitcode
-        } 
-      
+        $RG=$mysql.Resource_Group  
+		if ([string]::IsNullOrWhitespace($RG)){
+			Write-Host "'Resource Group' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
+			Continue
+		}
+
+    
 
     $port=$mysql.Port
 
@@ -259,24 +437,24 @@ else
         $port='3306'
         } 
 
-  $mysqlFlexi=$mysql.Destination.toLower()
+    $SSL_cert=$mysql.SSL_Cert
 
-  
-  $RG=$mysql.Resource_Group  
-  
+    
+
+                  
   $Az_import="az mysql flexible-server import create --data-source-type ""mysql_single"" --data-source ""$hostname"" --resource-group ""$RG"" --name ""$mysqlFlexi"""
 
   $tier=$mysql.Tier
      
-  if ($tier -ne $null)     { $Az_import=$Az_import+" --tier "+"$tier"  } 
+  if ($tier -ne "")     { $Az_import=$Az_import+" --tier "+"$tier"  } 
  
   $sku=$mysql."sku-name"
 
-  if ($sku -ne $null)     { $Az_import=$Az_import+" --sku-name "+"""$sku"""  } 
+  if ($sku -ne "")     { $Az_import=$Az_import+" --sku-name "+"""$sku"""  } 
 
   $storage=$mysql."storage-size"
 
-  if ($storage -ne $null) { $Az_import=$Az_import+" --storage-size "+$storage } 
+  if ($storage -ne "") { $Az_import=$Az_import+" --storage-size "+$storage } 
  
   $admin_user=$mysql."admin-user"
  
@@ -392,6 +570,8 @@ else
   
 $Az_import += '; $Success=$? '
 
+write-host $Az_import
+
 Invoke-Expression $Az_import 
 
 
@@ -465,16 +645,14 @@ Write-host "Position:"$Position
 If ($sslEnforcement -eq "Enabled")
   {
 
-  $cert = $(Write-Host "Input your certificate path (e.g. C:\cert\DigiCertGlobalRootG2.crt.pem; Leave blank for Default ./Validation_Scripts/DigiCertGlobalRootG2.crt.pem)::" -ForegroundColor Red -BackgroundColor Yellow -NoNewLine; Read-Host)
-  #$cert=Read-Host -Prompt 'Input your certificate path  name(Leave blank for Default ./Validation_Scripts/DigiCertGlobalRootG2.crt.pem):' -ForegroundColor Blue
-
-  If($cert -eq "")
+  
+  If($SSL_cert -eq "")
   {
   $cert=Get-Content $folder/Validation_Scripts/DigiCertGlobalRootG2.crt.pem -Raw
   }
   Else
   {
-  $cert=Get-Content $cert -Raw
+  $cert=Get-Content $SSL_cert -Raw
  
   }
   
@@ -533,7 +711,7 @@ else
 }
 
 }
-Write-host "`n---------------Refer below for final Status table--------------------------`n"
+Write-host "`nRefer below for final Status table....`n"
 Write-Host ($Output_data | select Host_Name,Status,Error_Msg| Format-Table -AutoSize -wrap| Out-String)  
-    Stop-Transcript
 }
+    Stop-Transcript
