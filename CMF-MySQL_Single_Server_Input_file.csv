@@ -1,4 +1,3 @@
-Host_Name,Resource_Group,Port,VCore,User_ID,Password,DB_Name,Destination,Approval_Status,Tier,sku-name,storage-size,admin-user,admin-password
-promysqlsingle,RG-ALLRegion-Automation-Team,,,sqltestuser,Mindtree123!,mysql,promysqlFlexible,YES,Burstable,Standard_B2s,20,,
-promysqlsingle,RG-ALLRegion-Automation-Team,,,sqltestuser,Mindtree123!,mysql,promysqlFlexible1,NO,GeneralPurpose,Standard_D8ads_v5,,,
-promysqlsingle1,RG-ALLRegion-Automation-Team,,,sqltestuser,Mindtree123!,mysql,promysqlFlexible1,NO,Burstable,Standard_E2ads_v5,20,,
+Host_Name,Resource_Group,Port,Source_Tier,VCore,User_ID,Password,Destination,Approval_Status,Tier,sku-name,storage-size,admin-user,admin-password,SSL_Cert
+prodmysqlsingle,RG-DUMMY,3306,GeneralPurpose,2,mysql-admin,*****,prodmysqlflexible,Yes,Burstable,Standard_B2s,20,Dummy-admin,dummypass@123,C:\Users\testuser\DigiCertGlobalRootG2.crt.pem
+mysqlsingle,RG-DUMMY,3306,GeneralPurpose,1,mysql-admin,*****,mysqlflex,NO,GeneralPurpose,Standard_D2ds_v4,50,Dummy-admin,dummypass@123,C:\Users\testuser\DigiCertGlobalRootG2.crt.pem
