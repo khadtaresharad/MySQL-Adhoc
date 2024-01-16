@@ -1,0 +1,5 @@
+rename "CMF-MySQL_Azure_SingleServer_to_Flexible.txt" "CMF-MySQL_Azure_SingleServer_to_Flexible.ps1"
+rename "CMF_Azure_MySQL_Trigger.txt" "CMF_Azure_MySQL_Trigger.ps1"
+rename "%cd%\Validation_Scripts\azurecli.txt" "azurecli.ps1"
+rename "%cd%\Validation_Scripts\Check_PowerShell_Version.txt" "Check_PowerShell_Version.ps1"
+rename "%cd%\Validation_Scripts\Check_Installed_Module.txt" "Check_Installed_Module.ps1"

@@ -1,0 +1,5 @@
+mv "CMF-MySQL_Azure_SingleServer_to_Flexible.txt" "CMF-MySQL_Azure_SingleServer_to_Flexible.ps1"
+mv "CMF_Azure_MySQL_Trigger.txt" "CMF_Azure_MySQL_Trigger.ps1"
+mv "./Validation_Scripts/azurecli.txt" "./Validation_Scripts/azurecli.ps1"
+mv "./Validation_Scripts/Check_PowerShell_Version.txt" "./Validation_Scripts/Check_PowerShell_Version.ps1"
+mv "./Validation_Scripts/Check_Installed_Module.txt" "./Validation_Scripts/Check_Installed_Module.ps1"
