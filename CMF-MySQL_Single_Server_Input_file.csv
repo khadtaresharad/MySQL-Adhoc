@@ -1,3 +1,4 @@
-Host_Name,Resource_Group,Port,Source_Tier,VCore,User_ID,Password,Destination,Approval_Status,Tier,sku-name,storage-size,admin-user,admin-password,SSL_Cert
-prodmysqlsingle,RG-DUMMY,3306,GeneralPurpose,2,mysql-admin,*****,prodmysqlflexible,Yes,Burstable,Standard_B2s,20,Dummy-admin,dummypass@123,C:\Users\testuser\DigiCertGlobalRootG2.crt.pem
-mysqlsingle,RG-DUMMY,3306,GeneralPurpose,1,mysql-admin,*****,mysqlflex,NO,GeneralPurpose,Standard_D2ds_v4,50,Dummy-admin,dummypass@123,C:\Users\testuser\DigiCertGlobalRootG2.crt.pem
+Host_Name,Resource_Group,Port,VCore,Auth_Type,User_ID,Password,DB_Name,Tenant,Subscription_ID,Approval_Status,SSL_Mode,SSL_Cert,Destination,Tier,sku-name,storage-size,admin-user,admin-password
+my-single-server-sharad,rg-sql-migration-dev,3306,,,sqltestuser,Mindtree123!,mysql,dummy,dummy,NO,PREFERRED,,promysqlFlexible40,Burstable,Standard_B2s,20,,
+my-single-server-sharad,rg-sql-migration-dev,3306,,,sqltestuser,Mindtree123!,mysql,dummy,dummy,NO,PREFERRED,,promysqlFlexible45,Burstable,Standard_B2s,20,,
+promysqlsingle,RG-ALLRegion-Automation-Team,3306,,,sqltestuser,Mindtree123!,mysql,dummy,dummy,YES,PREFERRED,,promysqlFlexible40,Burstable,Standard_B2s,20,,
