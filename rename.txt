@@ -7,10 +7,3 @@ rename "%cd%\Validation_Scripts\Check_PowerShell_Version.txt" "Check_PowerShell_
 rename "%cd%\Validation_Scripts\Check_Installed_Module.txt" "Check_Installed_Module.ps1"
 rename "Azure_Subscription.txt" "Azure_Subscription.csv"
 rename "CMF_MySQL_Server_Input_file.txt" "CMF_MySQL_Server_Input_file.csv"
-
-
-
-
-
-
-
