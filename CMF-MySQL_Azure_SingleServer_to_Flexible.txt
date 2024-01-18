@@ -215,7 +215,7 @@ else
 
 
 #Validating exported mysql single server input file
-$inputfile = $PSScriptRoot+"\CMF-MySQL_Single_Server_Input_file.csv" 
+$inputfile = $PSScriptRoot+"\CMF_MySQL_Server_Input_file.csv" 
 
 
 
@@ -237,11 +237,19 @@ else
            $Output_data =@()
             $ServerList = Import-Csv -Path $inputfile  
         $Approved_Rows = $ServerList | Where-Object { $_.Approval_Status.toupper() -eq "YES" }
-        $None_Approved = $ServerList | Where-Object { $_.Approval_Status.toupper() -eq "NO" }
-            if($None_Approved -ne $null )
+        $Not_Approved = $ServerList | Where-Object { $_.Approval_Status.toupper() -eq "NO" }
+        $Not_Approved_count=$Not_Approved.Host_Name.split(',').count
+        
+            if($Not_Approved -ne $null )
             { 
-            $Output_data += New-Object psobject -Property @{Host_Name=$None_Approved.Host_Name;Status="Not Approved";Error_msg="NA"}
+             $loop=0
+             while ($Not_Approved_count -gt $loop)  
+             {
+            $Output_data += New-Object psobject -Property @{Host_Name=$Not_Approved.Host_Name.split(',')[$loop];Status="Not Approved";Error_msg="NA"}
+            $loop++
             }
+            }
+
          $ServerList=$Approved_Rows
 
          }
@@ -359,6 +367,7 @@ else
         }
 
     $port=$mysql.Port
+    $hostname1=$hostname.split('.')[0]
 
     if($port -eq ""){
         $port='3306'
@@ -370,7 +379,7 @@ else
 
     $SSL_cert=$mysql.SSL_Cert
                   
-  $Az_import="az mysql flexible-server import create --data-source-type ""mysql_single"" --data-source ""$hostname"" --resource-group ""$RG"" --name ""$mysqlFlexi"""
+  $Az_import="az mysql flexible-server import create --data-source-type ""mysql_single"" --data-source ""$hostname1"" --resource-group ""$RG"" --name ""$mysqlFlexi"""
 
   $tier=$mysql.Tier
      
@@ -411,12 +420,13 @@ else
          $pass=$admin_pass
          } 
  
- 
-  $SingleServerInfo="$PSScriptRoot\Output\$hostname.mysql.database.azure.com_$Outdate.json"
+
+  $SingleServerInfo="$PSScriptRoot\Output\"+"$hostname"+"_$Outdate.json"
+
   $FlexServerInfo="$PSScriptRoot\Output\$mysqlFlexi.mysql.database.azure.com_$Outdate.json"  
   
-  $SingleServerErr="$PSScriptRoot\Logs\$hostname.Error_log_$Outdate.log"
-   
+  $SingleServerErr="$PSScriptRoot\output\$hostname1.Error_log_$Outdate.log"
+  $Log_File=$Folder+"\Output\"+$hostname1+"_"+$mysqlFlexi+"_"+"repl_result_$Outdate.log"     
    
     
      write-host "-----------------------------------------------------------------------------------------------------------"
@@ -437,38 +447,47 @@ else
        continue
        }
     
-    $connectionSingle="mysql -h $hostname.mysql.database.azure.com -u $MysqlUID@$hostname -p$MysqlPwd -D $DB_Name --ssl-mode=$SSL -e ""SHOW VARIABLES LIKE 'log_bin'"""
+        $connectionSingle="mysql -h $hostname -u $MysqlUID -p$MysqlPwd -D $DB_Name --ssl-mode=$SSL -e ""SHOW VARIABLES LIKE 'log_bin'"""
      
-        $Log_File=$Folder+"\Output\"+$hostname+"_"+$mysqlFlexi+"_"+"repl_result_$Outdate.log"    
-        try{    
+         
+       # try{    
         
         
          #"`nExecuting [$connectionSingle] on [$hostname]`n" >> $Log_File 
          Invoke-Expression "$connectionSingle 2>&1 | Out-File -FilePath $Log_File -Append"
          $MyData = gc $Log_File -Tail 2
-    
+            
     
           $MyData=-split $MyData[1]
+            
+    If ($MyData -match "ERROR")
+    {
+                    Write-host "Not able to connect Source MYSQL [$hostname]." -ForegroundColor Red
+                    Write-host $MyData -ForegroundColor Red
+                    Write-host "`nPlease refer log file @ $Log_File`n" -ForegroundColor Red
+                    #Set-Content -Path $SingleServerErr -Value $_.Exception.Message
+                    $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$MyData"}
+                    continue; 
+                    }
+                    else
+                    {
            Write-host "`nconnected successfully to host [$hostname]" -ForegroundColor Green  
-                              
-             } catch {
+                     }         
+        #     } catch {
                               
                      
-                    Write-host "Not able to connect Source MYSQL [$hostname].`nPlease refer log file @ $SingleServerErr`n" -ForegroundColor Red
-                    Write-Error $_
-                    Set-Content -Path $SingleServerErr -Value $_.Exception.Message
-                    $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$_"}
-                    continue; 
                     
-            }
+                    
+         #   }
     
      $log_bin=$MyData[1] 
-     az mysql server show --ids "/subscriptions/$Subscription/resourceGroups/$RG/providers/Microsoft.DBforMySQL/servers/$hostname" > $SingleServerInfo
+    
+     az mysql server show --ids "/subscriptions/$Subscription/resourceGroups/$RG/providers/Microsoft.DBforMySQL/servers/$hostname1" > $SingleServerInfo
      $ServerData= get-content "$SingleServerInfo" | ConvertFrom-Json
      
-    #Checking Binary logging on Source single mySQL server, Needed to configure replication
+     #Checking Binary logging on Source single mySQL server, Needed to configure replication
 
-    Write-host "Checking Binary logging on [$hostname]"
+     Write-host "Checking Binary logging on [$hostname]"
      If ($log_bin -match "ON")
      {
       Write-host "`nBinary logging is already enabled on the source MySql [$hostname]`n" -ForegroundColor YELLOW 
@@ -478,6 +497,7 @@ else
       Write-host "`nReplication cant be configured. Binary logging is disabled on the source MySql [$hostname].`nKindly verify that binary logging is enabled by running ""SHOW VARIABLES LIKE 'log_bin';""" -ForegroundColor Red 
      Write-host "Refer: https://learn.microsoft.com/en-us/azure/mysql/single-server/how-to-data-in-replication`n" -ForegroundColor Blue
      "Replication cant be configured. Binary logging is disabled on the source MySql [$hostname]. Kindly verify that binary logging is enabled by running ""SHOW VARIABLES LIKE 'log_bin';""" >> $SingleServerErr
+     $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$_"}
      continue;
      }
     $sslEnforcement=$ServerData[0].sslEnforcement
@@ -517,7 +537,7 @@ if($Success -match "True")
  
    $commandFlexi="""call mysql.az_show_binlog_file_and_pos_for_mysql_import;"""
 
-   $connectionFlexi="mysql -h $mysqlFlexi.mysql.database.azure.com -u $uid@$mysqlFlexi -p$pass -D $DB_Name --ssl-mode=$SSL -e "
+   $connectionFlexi="mysql -h $mysqlFlexi.mysql.database.azure.com -u $uid -p$pass -D $DB_Name --ssl-mode=$SSL -e "
 
    $execFlexi=$connectionFlexi+$commandFlexi
 
@@ -581,16 +601,16 @@ If ($sslEnforcement -eq "Enabled")
  
   }
   
-  $command="""call mysql.az_replication_change_master('$hostname.mysql.database.azure.com', '$uid@$hostname', '$pass', $port, '$binLogFile', $Position, '$cert')"""
+  $command="""call mysql.az_replication_change_master('$hostname', '$uid', '$pass', $port, '$binLogFile', $Position, '$cert')"""
   Write-host "`nExecuting... " -ForegroundColor Blue
-  Write-host "call mysql.az_replication_change_master('$hostname.mysql.database.azure.com', '$uid@$hostname', '*****', $port, '$binLogFile', $Position, '*****')" -ForegroundColor Blue
+  Write-host "call mysql.az_replication_change_master('$hostname', '$uid', '*****', $port, '$binLogFile', $Position, '*****')" -ForegroundColor Blue
 
   }
   else
   {
-    $command="""call mysql.az_replication_change_master('$hostname.mysql.database.azure.com', '$uid@$hostname', '$pass', $port, '$binLogFile', $Position, '')"""
+    $command="""call mysql.az_replication_change_master('$hostname', '$uid', '$pass', $port, '$binLogFile', $Position, '')"""
     Write-host "`nExecuting... " -ForegroundColor Blue
-    Write-host "call mysql.az_replication_change_master('$hostname.mysql.database.azure.com', '$uid@$hostname', '*****', $port, '$binLogFile', $Position, '')" -ForegroundColor Blue
+    Write-host "call mysql.az_replication_change_master('$hostname', '$uid', '*****', $port, '$binLogFile', $Position, '')" -ForegroundColor Blue
   }
 
 

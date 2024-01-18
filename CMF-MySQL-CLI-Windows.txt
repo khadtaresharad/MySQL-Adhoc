@@ -1,8 +1,8 @@
-#---------------------------------------------------------------------------------------------------------------------------*
-#  Purpose        : Trigger Script for Azure MySQL Single Server to Flexible server migration
+﻿#---------------------------------------------------------------------------------------------------------------------------*
+#  Purpose        : Trigger Script for Information gathering of Azure MySQL Single Server
 #  Schedule       : Ad-Hoc / On-Demand
-#  Date           : 15-Dec-2023
-#  Author         : Rackimuthu Kandaswamy , ArunKumar , Lekshmy MK, Madan
+#  Date           : 09-Oct-2023
+#  Author         : Rackimuthu Kandaswamy , ArunKumar , Lekshmy MK
 #  Version        : NA
 #   
 #  INPUT          : NONE
@@ -17,10 +17,10 @@
 #---------------------------------------------------------------------------------------------------------------------------*
 #---------------------------------------------------------------------------------------------------------------------------*
 # Usage:
-# Powershell.exe -File .\CMF-MySQL_Azure_SingleServer_to_Flexible.ps1
+# Powershell.exe -File .\CMF-MySQL-Trigger.ps1
 #
 $command = @"
-    powershell.exe -File .\CMF-MySQL_Azure_SingleServer_to_Flexible.ps1
+    powershell.exe -File .\CMF-MySQL-Trigger.ps1
 "@
 
 cmd.exe /C $command
