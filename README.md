@@ -14,14 +14,17 @@
 	If you have "CMF_MySQL_Server_Input_file.csv" input file ready which cointains single server info, go to step 7 
 	otherwise proceed with next step to generate the input CSV file.
 
-5. 	Execute `powershell .\CMF-MySQL-CLI-Windows.ps1` on command prompt.This will generate the CSV input file - "CMF_MySQL_Server_Input_file.csv".
-	Also this will generate the single server info to output folder.
+5. 	Execute `powershell .\CMF-MySQL-CLI-Windows.ps1` on command prompt.(for Windows )
+	Execute `pwsh .\CMF-MySQL-CLI-Windows.ps1`(for Linux )
+	This will generate the CSV input file - "CMF_MySQL_Server_Input_file.csv".
+	Also this will generate the single server info/log to output folder.
    	
 6. 	Open the Inut file "CMF_MySQL_Server_Input_file.csv" make sure correct server data with approved columns. 
    	Mandatory fields are listed below...
 	
 7. 	Once input CSV file "CMF_MySQL_Server_Input_file.csv" was verified...
-	execute  `powershell .\CMF-MySQL_Azure_SingleServer_to_Flexible.ps1` on command prompt.
+	execute  `powershell .\CMF-MySQL_Azure_SingleServer_to_Flexible.ps1` on command prompt.(for Windows )
+	Execute `pwsh .\CMF-MySQL_Azure_SingleServer_to_Flexible.ps1`(for Linux )
 
 8.	Once the execution completed, review final status table.Also you can check the output & Logs folder.
 
