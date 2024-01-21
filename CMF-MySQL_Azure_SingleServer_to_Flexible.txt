@@ -427,7 +427,7 @@ else
   
   $SingleServerErr="$PSScriptRoot\output\$hostname1.Error_log_$Outdate.log"
   $Log_File=$Folder+"\Output\"+$hostname1+"_"+$mysqlFlexi+"_"+"repl_result_$Outdate.log"     
-   
+  $Log_File_temp=$Folder+"\Output\"+$hostname1+"_"+$mysqlFlexi+"_"+"temp_$Outdate.log"  
     
      write-host "-----------------------------------------------------------------------------------------------------------"
      write-host "Processing Source Single server [$hostname]              "
@@ -447,17 +447,18 @@ else
        continue
        }
     
-        $connectionSingle="mysql -h $hostname -u $MysqlUID -p$MysqlPwd -D $DB_Name --ssl-mode=$SSL -e ""SHOW VARIABLES LIKE 'log_bin'"""
+   
+
+       
+     $connectionSingle="mysql -h $hostname -u $MysqlUID -p$MysqlPwd -D $DB_Name --ssl-mode=$SSL -e ""SHOW VARIABLES LIKE 'log_bin'"""
      
-         
-       # try{    
         
         
          #"`nExecuting [$connectionSingle] on [$hostname]`n" >> $Log_File 
-         Invoke-Expression "$connectionSingle 2>&1 | Out-File -FilePath $Log_File -Append"
-         $MyData = gc $Log_File -Tail 2
+         Invoke-Expression "$connectionSingle 2>&1 | Out-File -FilePath $Log_File_temp -Append"
+         $MyData = gc $Log_File_temp -Tail 2 
             
-    
+            $MyData| Out-File -FilePath $Log_File -Append
           $MyData=-split $MyData[1]
             
     If ($MyData -match "ERROR")
@@ -473,12 +474,6 @@ else
                     {
            Write-host "`nconnected successfully to host [$hostname]" -ForegroundColor Green  
                      }         
-        #     } catch {
-                              
-                     
-                    
-                    
-         #   }
     
      $log_bin=$MyData[1] 
     
@@ -541,38 +536,37 @@ if($Success -match "True")
 
    $execFlexi=$connectionFlexi+$commandFlexi
 
+   $FlexConnFailed=0
  $tries = 0
     while ($tries -lt 4) 
     {
-        try{    
-
+       
                 #"`nExecuting [$execFlexi] on [$mysqlFlexi]`n" >> $Log_File    
                 "`n**********************************************`n" >> $Log_File         
-              Invoke-Expression "$execFlexi 2>&1 | Out-File -FilePath $Log_File -Append"
-               $MyData = gc $Log_File -Tail 2
-               Write-host "`nconnected successfully to host [$mysqlFlexi]" -ForegroundColor Green  
-           
+              Invoke-Expression "$execFlexi 2>&1 | Out-File -FilePath $Log_File_temp -Append"
+                $stat = $LASTEXITCODE
+                If( $stat -ne 0)
+                {
+                 Write-host "Host [$mysqlFlexi] is not ready to accept connection.retrying connection after 10s..." -ForegroundColor Yellow
+                 start-sleep 10
+                 $errorMessage = $Error[0].Exception.Message  
+                 $FlexConnFailed = 1
+                 $tries++
+                 If ($tries -eq 3){$Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg=$errorMessage}}
+                 
+                }
+                else
+                {
+               $MyData = gc $Log_File_temp -Tail 2
+                  $MyData |Out-File -FilePath $Log_File -Append
+               Write-host "`nconnected successfully to host [$mysqlFlexi]" -ForegroundColor Green
+               $FlexConnFailed=0
+               $tries=4  
+                }
                      
-           BREAK
-           } catch {
-                              
-                    if($tries -ne 3)
-                    {    
-                    Write-host "Host [$mysqlFlexi] is not ready to accept connection.retrying connection after 10s..." -ForegroundColor Yellow 
-                    
-                    } 
-                    else
-                    {
-                    Write-host "Failed to connect [$mysqlFlexi], Please refer log file @ $SingleServerErr" -ForegroundColor Red 
-                    Write-Error $_
-                    Set-Content -Path $SingleServerErr -Value $_.Exception.Message
-                    $FlexConnFailed=1
-                    $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$_"}
-                    }
-                start-sleep 10
-                $tries++
+       
          }
-    }
+    
 
 if($FlexConnFailed -ne 1)
 {
@@ -617,9 +611,9 @@ If ($sslEnforcement -eq "Enabled")
     $execFlexi=$connectionFlexi+$command
     #"`nExecuting [$execFlexi] on [$mysqlFlexi]`n" >> $Log_File 
      "`n**********************************************`n" >> $Log_File    
-    Invoke-Expression "$execFlexi 2>&1 | Out-File -FilePath $Log_File -Append"
-    $MyData = gc $Log_File -Tail 2
-
+    Invoke-Expression "$execFlexi 2>&1 | Out-File -FilePath $Log_File_temp -Append"
+    $MyData = gc $Log_File_temp -Tail 2
+      $MyData|out-File -FilePath $Log_File -Append
 $MyDataH=$MyData[0].split("`t")
 $MyDataD=$MyData[1].split("`t")
 
@@ -641,9 +635,9 @@ $command="""call mysql.az_replication_start"""
 $execFlexi=$connectionFlexi+$command
  #"`nExecuting [$execFlexi] on [$mysqlFlexi]`n" >> $Log_File 
  "`n**********************************************`n" >> $Log_File
-Invoke-Expression "$execFlexi 2>&1 | Out-File -FilePath $Log_File -Append"
-$MyData = gc $Log_File -Tail 2
-
+Invoke-Expression "$execFlexi 2>&1 | Out-File -FilePath $Log_File_temp -Append"
+$MyData = gc $Log_File_temp -Tail 2
+$MyData|Out-File -FilePath $Log_File -Append
 $MyDataH=$MyData[0].split("`t")
 $MyDataD=$MyData[1].split("`t")
 
@@ -655,7 +649,6 @@ write-host "Error Message:"$MyDataD[2] -ForegroundColor Red
 }
 else
 {
-#Write-host "call mysql.az_replication_start executed successfully!!" -ForegroundColor Green
 Write-host $MyDataD[0] -ForegroundColor Green
 $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="SUCCESS";Error_msg="NA"}
 
@@ -666,11 +659,14 @@ $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="SUCC
 }
 else
 {
- $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="NA"}
+              
+              $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="NA"}
+    
 }
 
 }
+
 Write-host "`nRefer below for final Status table....`n"
 Write-Host ($Output_data | select Host_Name,Status,Error_Msg| Format-Table -AutoSize -wrap| Out-String)  
-
+Remove-Item $Log_File_temp
     Stop-Transcript
