@@ -5,7 +5,7 @@
 
 2.	Extract the `unzip MySQL-Single-to-Flexi.zip` file.
 
-3.	Open command prompt with run as administrator and browse the unzipped folder.
+3.	Open command prompt -> run as administrator and browse the unzipped folder(CD path).
 	Run `rename rename.txt rename.bat` and Execute the `rename.bat` (for Windows )
 	Run `sh ./rename-linux.txt` ( for Linux )
 
