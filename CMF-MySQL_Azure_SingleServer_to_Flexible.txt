@@ -195,7 +195,7 @@ exitCode
 }
 #AZ login to corresponsing Tenant and subscription
 
-$loginoutput = az login --tenant $tenant --only-show-errors
+$loginoutput = az login --tenant $tenant
 
 if (!$loginoutput) 
 {
