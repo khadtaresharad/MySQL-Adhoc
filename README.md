@@ -24,7 +24,7 @@
 	
 7. 	Once input CSV file "CMF_MySQL_Server_Input_file.csv" was verified...
 	execute  `powershell .\CMF-MySQL_Azure_SingleServer_to_Flexible.ps1` on command prompt.(for Windows )
-	Execute `pwsh .\CMF-MySQL_Azure_SingleServer_to_Flexible.ps1`(for Linux )
+	Execute `pwsh CMF-MySQL_Azure_SingleServer_to_Flexible.ps1`(for Linux )
 
 8.	Once the execution completed, review final status table.Also you can check the output & Logs folder.
 
