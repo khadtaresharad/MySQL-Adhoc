@@ -363,9 +363,11 @@ else
 
   foreach ($i in $ser_details)
   {
-           
+       
+        
       #Updating input file with server details
       $ServerName= $i.name
+         
       $Single_User_Name = $i.administratorLogin
       #createFolder $folder\Output\Single\$ServerName\
       $ser_rg = $i.resourceGroup  
@@ -374,9 +376,13 @@ else
       $ser_dom = $dom[0]
       $Logon_User=$Single_User_Name + "@" + $ser_dom
       $vcore=$i.sku.capacity
+      $userVisibleState=$i.userVisibleState
 
+      Write-Host "`nInformation gathering of Azure MySQL Single Server [$ServerName] is in progress..."  -ForegroundColor Green   
       $Outfiledata+=New-Object psobject -Property @{Host_Name=$domain_name;Resource_Group=$ser_rg;Port="3306";VCore=$vcore;Auth_Type="mysql";User_ID=$Logon_User;Password="";DB_Name="mysql";Tenant=$tenant;Subscription_ID=$Subscription;Approval_Status="No";SSL_Mode="PREFERRED"}
-          
+ 
+ if ($userVisibleState -match "Ready")
+    {      
     try
     {    
     #DB List
@@ -460,6 +466,10 @@ else
       throw $_.Exception.Message  
       throw  $_.Exception.Response.StatusCode.Value__
       exitcode
+      }}
+      else
+      {
+      Write-Host "MySQL Single server [$ServerName] state is not 'Ready', All information can't be captured for [$ServerName]`n" -ForegroundColor Red
       }
       }
     $Serverdata| ForEach-Object {[PSCustomObject]$_}  | Export-CSV -NoTypeInformation -Path $PSScriptRoot\Output\Server_List.csv 
@@ -476,11 +486,7 @@ else
     Write-Host "==============================================================================================================" 
   
     if($Outfiledata -ne $null){
-    $Outfiledata | select Host_Name,Resource_Group,Port,VCore,User_ID,Password,Auth_Type,DB_Name,Tenant,Subscription_ID,Approval_Status,SSL_Mode,SSL_Cert,Destination,Tier,sku-name,storage-size,admin-user,admin-password | Export-CSV $PSScriptRoot\Server_List.csv
-    $originalCsvFilePath = "$PSScriptRoot\Server_List.csv"
-    $newCsvFilePath = "$PSScriptRoot\CMF_MySQL_Server_Input_file.csv"
-    $content = Get-Content -Path $originalCsvFilePath | Select-Object -Skip 1
-    $content | Set-Content -Path $newCsvFilePath
+    $Outfiledata | select Host_Name,Resource_Group,Port,VCore,User_ID,Password,Auth_Type,DB_Name,Tenant,Subscription_ID,Approval_Status,SSL_Mode,SSL_Cert,Destination,Tier,sku-name,storage-size,admin-user,admin-password | Export-CSV -NoTypeInformation $PSScriptRoot\CMF_MySQL_Server_Input_file.csv
     }
     
 }  
