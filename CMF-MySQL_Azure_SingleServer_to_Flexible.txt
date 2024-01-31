@@ -74,6 +74,7 @@ createFolder $folder\Downloads\
 createFolder $folder\Logs\
 createFolder $folder\Output\
 createFolder $folder\Output\Single\
+createFolder $folder\Output\Flexi\
 
 
 Write-Host "======================================================================================="
@@ -327,43 +328,58 @@ else
   {
     
 		$hostname=$mysql.'Host_Name'
+        $SingleServerErr="$PSScriptRoot\output\$hostname"+"_"+"$Outdate.log"
 		if ([string]::IsNullOrWhitespace($hostname)){
 			Write-Host "'Host_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
+               $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="Host_Name' is not valid"}
+                Set-Content -Path $SingleServerErr -Value "Error: 'Host_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
 			Continue
 		}
 		
 		$MysqlUID=$mysql.'User_ID'
 		if ([string]::IsNullOrWhitespace($MysqlUID)){
 			Write-Host "'User_ID' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
+            $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'User_ID' is not valid"}
+            Set-Content -Path $SingleServerErr -Value "Error: 'User_ID' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
 			Continue
 		}
 	
 		$MysqlPwd=$mysql.'Password'
 		if ([string]::IsNullOrWhitespace($MysqlPwd)){
 			Write-Host "'Password' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
+            $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'Password' is not valid"}
+            Set-Content -Path $SingleServerErr -Value "Error: 'Password' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
 			Continue
 		}
         $DB_Name=$mysql.'DB_Name'
         if ([string]::IsNullOrWhitespace($DB_Name)){
             Write-Host "'DB_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
+                  $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'DB_Name' is not valid"}
+                   Set-Content -Path $SingleServerErr -Value "Error: 'DB_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
             Continue
         }
 
 	    $mysqlFlexi=$mysql.Destination.toLower()
 		if ([string]::IsNullOrWhitespace($mysqlFlexi)){
-			Write-Host "'Destination' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
+			Write-Host "'Destination' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red
+             $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'Destination' is not valid"}
+              Set-Content -Path $SingleServerErr -Value "Error: 'Destination' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet." 
 			Continue
 		}
 
         $RG=$mysql.Resource_Group  
 		if ([string]::IsNullOrWhitespace($RG)){
-			Write-Host "'Resource Group' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
+			Write-Host "'Resource Group' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red
+            $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'Resource Group' is not valid"}  
+            Set-Content -Path $SingleServerErr -Value "Error: 'Resource Group' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet." 
 			Continue
 		}
         $SSL=$mysql.'SSL_Mode'
         if ([string]::IsNullOrWhitespace($SSL)){
             Write-Host "'SSL_Mode' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
-            Continue
+            $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'SSL_Mode' is not valid"}  
+            Set-Content -Path $SingleServerErr -Value "Error: 'SSL_Mode' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet." 
+			Continue
         }
 
     $port=$mysql.Port
@@ -421,12 +437,12 @@ else
          } 
  
 
-  $SingleServerInfo="$PSScriptRoot\Output\"+"$hostname"+"_$Outdate.json"
+  $SingleServerInfo="$PSScriptRoot\Output\Single\"+"$hostname"+"_$Outdate.json"
 
-  $FlexServerInfo="$PSScriptRoot\Output\$mysqlFlexi.mysql.database.azure.com_$Outdate.json"  
+  $FlexServerInfo="$PSScriptRoot\Output\Flexi\$mysqlFlexi.mysql.database.azure.com_$Outdate.json"  
   
-  $SingleServerErr="$PSScriptRoot\output\$hostname1.Error_log_$Outdate.log"
-  $Log_File=$Folder+"\Output\"+$hostname1+"_"+$mysqlFlexi+"_"+"repl_result_$Outdate.log"     
+  #$SingleServerErr="$PSScriptRoot\output\$hostname1.Error_log_$Outdate.log"
+  $Log_File=$Folder+"\Output\"+$hostname1+"_"+$mysqlFlexi+"_"+"$Outdate.log"     
   $Log_File_temp=$Folder+"\Output\"+$hostname1+"_"+$mysqlFlexi+"_"+"temp_$Outdate.log"  
     
      write-host "-----------------------------------------------------------------------------------------------------------"
@@ -442,8 +458,10 @@ else
    
        if (($mysqlFlexi.length -gt 63) -or ($mysqlFlexi.length -lt 3) -or ($mysqlFlexi -match "[^a-z0-9-]"))
        {
-       Write-host "`nError - The Flexible server name can contain only lowercase letters, numbers, and the hyphen (-) character. Minimum 3 characters and maximum 63`n"  -ForegroundColor Red
-       Set-Content -Path $SingleServerErr -Value "Error - The Flexible server name can contain only lowercase letters, numbers, and the hyphen (-) character. Minimum 3 characters and maximum 63"
+       Write-host "`nError - The Flexible server name can contain only lowercase letters, numbers, and the hyphen (-) character. Minimum 3 characters and maximum 63"  -ForegroundColor Red
+       Write-host "NOTE: The 'Destination' column in input CSV file shouldn't suffix with .mysql.database.azure.com.`n"  -ForegroundColor Red
+       Set-Content -Path $Log_File -Value "Error - The Flexible server name can contain only lowercase letters, numbers, and the hyphen (-) character. Minimum 3 characters and maximum 63"
+       $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="The Flexible server name can contain only lowercase letters, numbers, and the hyphen (-) character. Minimum 3 characters and maximum 63"}  
        continue
        }
     
@@ -459,21 +477,22 @@ else
          $MyData = gc $Log_File_temp -Tail 2 
             
             $MyData| Out-File -FilePath $Log_File -Append
+            
           $MyData=-split $MyData[1]
             
     If ($MyData -match "ERROR")
-    {
+          {
                     Write-host "Not able to connect Source MYSQL [$hostname]." -ForegroundColor Red
                     Write-host $MyData -ForegroundColor Red
                     Write-host "`nPlease refer log file @ $Log_File`n" -ForegroundColor Red
                     #Set-Content -Path $SingleServerErr -Value $_.Exception.Message
                     $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$MyData"}
+                    if (Test-Path $Log_File_temp) { Remove-Item $Log_File_temp} 
                     continue; 
-                    }
-                    else
-                    {
+          }else
+          {
            Write-host "`nconnected successfully to host [$hostname]" -ForegroundColor Green  
-                     }         
+          }         
     
      $log_bin=$MyData[1] 
     
@@ -490,8 +509,8 @@ else
      Else
      {
       Write-host "`nReplication cant be configured. Binary logging is disabled on the source MySql [$hostname].`nKindly verify that binary logging is enabled by running ""SHOW VARIABLES LIKE 'log_bin';""" -ForegroundColor Red 
-     Write-host "Refer: https://learn.microsoft.com/en-us/azure/mysql/single-server/how-to-data-in-replication`n" -ForegroundColor Blue
-     "Replication cant be configured. Binary logging is disabled on the source MySql [$hostname]. Kindly verify that binary logging is enabled by running ""SHOW VARIABLES LIKE 'log_bin';""" >> $SingleServerErr
+      Write-host "Refer: https://learn.microsoft.com/en-us/azure/mysql/single-server/how-to-data-in-replication`n" -ForegroundColor Blue
+     "Replication cant be configured. Binary logging is disabled on the source MySql [$hostname]. Kindly verify that binary logging is enabled by running ""SHOW VARIABLES LIKE 'log_bin';""" >> $Log_File
      $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$_"}
      continue;
      }
@@ -552,7 +571,12 @@ if($Success -match "True")
                  $errorMessage = $Error[0].Exception.Message  
                  $FlexConnFailed = 1
                  $tries++
-                 If ($tries -eq 3){$Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg=$errorMessage}}
+                 If ($tries -eq 3){
+                 $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg=$errorMessage}
+                  "Not able to connect to provisioned MySql flexi server [$mysqlFlexi]. Kindly check - $errorMessage"  >> $Log_File
+    
+                 }
+                 
                  
                 }
                 else
@@ -663,10 +687,14 @@ else
               $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="NA"}
     
 }
+if (Test-Path $Log_File_temp) {
+        Remove-Item $Log_File_temp
+    } 
 
 }
 
 Write-host "`nRefer below for final Status table....`n"
-Write-Host ($Output_data | select Host_Name,Status,Error_Msg| Format-Table -AutoSize -wrap| Out-String)  
-Remove-Item $Log_File_temp
+Write-Host ($Output_data | select Host_Name,Status,Error_Msg| Format-Table -AutoSize -wrap| Out-String) 
+
+
     Stop-Transcript
