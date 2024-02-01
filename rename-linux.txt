@@ -7,3 +7,4 @@ mv "./Validation_Scripts/Check_PowerShell_Version.txt" "./Validation_Scripts/Che
 mv "./Validation_Scripts/Check_Installed_Module.txt" "./Validation_Scripts/Check_Installed_Module.ps1"
 mv "Azure_Subscription.txt" "Azure_Subscription.csv"
 mv "CMF_MySQL_Server_Input_file.txt" "CMF_MySQL_Server_Input_file.csv"
+mv "mysql.txt" "mysql.cnf"

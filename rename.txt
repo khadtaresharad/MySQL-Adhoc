@@ -2,6 +2,7 @@ rename "CMF-MySQL_Azure_SingleServer_to_Flexible.txt" "CMF-MySQL_Azure_SingleSer
 rename "CMF-MySQL-Trigger.txt" "CMF-MySQL-Trigger.ps1"
 rename "CMF-MySQL-CLI-Windows.txt" "CMF-MySQL-CLI-Windows.ps1"
 rename "CMF-MySQL-CLI-Linux.txt" "CMF-MySQL-CLI-Linux.ps1"
+rename "mysql.txt" "mysql.cnf"
 rename "%cd%\Validation_Scripts\azurecli.txt" "azurecli.ps1"
 rename "%cd%\Validation_Scripts\Check_PowerShell_Version.txt" "Check_PowerShell_Version.ps1"
 rename "%cd%\Validation_Scripts\Check_Installed_Module.txt" "Check_Installed_Module.ps1"

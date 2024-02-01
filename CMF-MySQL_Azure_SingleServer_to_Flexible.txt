@@ -47,6 +47,11 @@ Write-Host "`n==================================================================
 Start-Transcript -path  $folder\Logs\CMF_MySQL_Azure_SingleServer_to_Flexible_Automation_Transcript_$Outdate.txt -Append
 Write-Host "`n======================================================================================="
 
+
+function Yellow
+{
+    process { Write-Host $_ -ForegroundColor Yellow }
+}
   
 function exitCode
 {
@@ -328,6 +333,10 @@ else
   {
     
 		$hostname=$mysql.'Host_Name'
+     write-host "`n`n-----------------------------------------------------------------------------------------------------------"
+     write-host "Processing Source Single server [$hostname]              "
+     write-host "-----------------------------------------------------------------------------------------------------------"
+
         $SingleServerErr="$PSScriptRoot\output\$hostname"+"_"+"$Outdate.log"
 		if ([string]::IsNullOrWhitespace($hostname)){
 			Write-Host "'Host_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
@@ -413,8 +422,7 @@ else
  
        if ($admin_user -eq "") 
         {
-        $uid=$mysql.User_ID
-       
+        $uid=$mysql.User_ID.split("@")[0]
         }
         else
         {
@@ -436,18 +444,15 @@ else
          $pass=$admin_pass
          } 
  
-
   $SingleServerInfo="$PSScriptRoot\Output\Single\"+"$hostname"+"_$Outdate.json"
 
   $FlexServerInfo="$PSScriptRoot\Output\Flexi\$mysqlFlexi.mysql.database.azure.com_$Outdate.json"  
   
   #$SingleServerErr="$PSScriptRoot\output\$hostname1.Error_log_$Outdate.log"
   $Log_File=$Folder+"\Output\"+$hostname1+"_"+$mysqlFlexi+"_"+"$Outdate.log"     
-  $Log_File_temp=$Folder+"\Output\"+$hostname1+"_"+$mysqlFlexi+"_"+"temp_$Outdate.log"  
+  #$Log_File_temp=$Folder+"\Output\"+$hostname1+"_"+$mysqlFlexi+"_"+"temp_$Outdate.log"  
     
-     write-host "-----------------------------------------------------------------------------------------------------------"
-     write-host "Processing Source Single server [$hostname]              "
-     write-host "-----------------------------------------------------------------------------------------------------------"
+    
     #write-host "tier:" $ServerData[0].sku.tier
     #write-host "Compute Generation:" $ServerData[0].sku.family
     #write-host "vCore:" $ServerData[0].sku.capacity
@@ -466,17 +471,34 @@ else
        }
     
    
+    $sourceFilePath="$Folder\mysql.cnf"
+    $destinationFilePath="$Folder\config.cnf"
+    #$searchPattern="defaults-extra-file"
+    $searchPattern="NEWPASS"
+    Copy-Item -Path $sourceFilePath -Destination $destinationFilePath
+    $content = Get-Content -Path $destinationFilePath -Raw
+    $newContent = $content -replace $searchPattern, $MysqlPwd
+    Set-Content -Path $destinationFilePath -Value $newContent
 
        
-     $connectionSingle="mysql -h $hostname -u $MysqlUID -p$MysqlPwd -D $DB_Name --ssl-mode=$SSL -e ""SHOW VARIABLES LIKE 'log_bin'"""
+     $connectionSingle="mysql --defaults-extra-file=$destinationFilePath  -h $hostname -u $MysqlUID -D $DB_Name --ssl-mode=$SSL -e ""SHOW VARIABLES LIKE 'log_bin'"""
      
+         Invoke-Expression "$connectionSingle 2>&1 >> $Log_File"
+         $stat = $LASTEXITCODE
+  
+    If( $stat -ne 0)
+    {
+      
+       $errorMessage = $Error[0].Exception.Message
+        $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$errorMessage"}
+        Write-host $errorMessage -ForegroundColor Red
+     continue
+    }
+
         
-        
-         #"`nExecuting [$connectionSingle] on [$hostname]`n" >> $Log_File 
-         Invoke-Expression "$connectionSingle 2>&1 | Out-File -FilePath $Log_File_temp -Append"
-         $MyData = gc $Log_File_temp -Tail 2 
-            
-            $MyData| Out-File -FilePath $Log_File -Append
+         $MyData = gc $Log_File -Tail 2 
+         "`n**********************************************`n" >> $Log_File  
+            #$MyData| Out-File -FilePath $Log_File -Append
             
           $MyData=-split $MyData[1]
             
@@ -487,7 +509,7 @@ else
                     Write-host "`nPlease refer log file @ $Log_File`n" -ForegroundColor Red
                     #Set-Content -Path $SingleServerErr -Value $_.Exception.Message
                     $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$MyData"}
-                    if (Test-Path $Log_File_temp) { Remove-Item $Log_File_temp} 
+                    #if (Test-Path $Log_File_temp) { Remove-Item $Log_File_temp} 
                     continue; 
           }else
           {
@@ -511,7 +533,7 @@ else
       Write-host "`nReplication cant be configured. Binary logging is disabled on the source MySql [$hostname].`nKindly verify that binary logging is enabled by running ""SHOW VARIABLES LIKE 'log_bin';""" -ForegroundColor Red 
       Write-host "Refer: https://learn.microsoft.com/en-us/azure/mysql/single-server/how-to-data-in-replication`n" -ForegroundColor Blue
      "Replication cant be configured. Binary logging is disabled on the source MySql [$hostname]. Kindly verify that binary logging is enabled by running ""SHOW VARIABLES LIKE 'log_bin';""" >> $Log_File
-     $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$_"}
+     $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="Binary logging is disabled on the source MySql [$hostname]"}
      continue;
      }
     $sslEnforcement=$ServerData[0].sslEnforcement
@@ -530,9 +552,32 @@ else
         # Record provisiong start time  
     Write-host "`n----------Start Time::$(Get-Date -format 's')-----------`n"
      
-    $Az_import += '; $Success=$? '
-    Invoke-Expression $Az_import 
+   #$Az_import += '; $Success=$? '
 
+      $Az_import += " 2>&1 >> $Log_File"
+   
+   #write-host  $Az_import 
+   
+    Invoke-Expression $Az_import
+    $stat = $LASTEXITCODE 
+     #Write-Output "Last operation status: $stat"
+         $Content=gc $Log_File | select-object -skip 4
+
+          If( $stat -ne 0)
+    {
+     
+       $errorMessage = $Error[0].Exception.Message
+       Write-output $Content | Yellow
+       Write-host $errorMessage -ForegroundColor Red
+      
+    }
+       else
+       {
+        Write-output $Content | Yellow
+       }
+    
+    
+       #$MyData = gc $Log_File -Tail 2
 
         # Record the end time
     Write-host "`n----------End Time::$(Get-Date -format 's')-----------`n"
@@ -543,7 +588,7 @@ else
 #if provisiong:Success
 
 
-if($Success -match "True")
+if($stat -eq 0)
 {
    az mysql flexible-server show --ids "/subscriptions/$Subscription/resourceGroups/$RG/providers/Microsoft.DBforMySQL/flexibleServers/$mysqlFlexi" > $FlexServerInfo
    
@@ -551,7 +596,7 @@ if($Success -match "True")
  
    $commandFlexi="""call mysql.az_show_binlog_file_and_pos_for_mysql_import;"""
 
-   $connectionFlexi="mysql -h $mysqlFlexi.mysql.database.azure.com -u $uid -p$pass -D $DB_Name --ssl-mode=$SSL -e "
+   $connectionFlexi="mysql --defaults-extra-file=$destinationFilePath -h $mysqlFlexi.mysql.database.azure.com -u $uid -D $DB_Name --ssl-mode=$SSL -e "
 
    $execFlexi=$connectionFlexi+$commandFlexi
 
@@ -562,7 +607,7 @@ if($Success -match "True")
        
                 #"`nExecuting [$execFlexi] on [$mysqlFlexi]`n" >> $Log_File    
                 "`n**********************************************`n" >> $Log_File         
-              Invoke-Expression "$execFlexi 2>&1 | Out-File -FilePath $Log_File_temp -Append"
+              Invoke-Expression "$execFlexi 2>&1 >> $Log_File"
                 $stat = $LASTEXITCODE
                 If( $stat -ne 0)
                 {
@@ -581,8 +626,8 @@ if($Success -match "True")
                 }
                 else
                 {
-               $MyData = gc $Log_File_temp -Tail 2
-                  $MyData |Out-File -FilePath $Log_File -Append
+               $MyData = gc $Log_File -Tail 2
+                  #$MyData |Out-File -FilePath $Log_File -Append
                Write-host "`nconnected successfully to host [$mysqlFlexi]" -ForegroundColor Green
                $FlexConnFailed=0
                $tries=4  
@@ -592,6 +637,7 @@ if($Success -match "True")
          }
     
 
+#if($FlexConnFailed -ne 1)
 if($FlexConnFailed -ne 1)
 {
 Write-host "Executed ""call mysql.az_show_binlog_file_and_pos_for_mysql_import""" -ForegroundColor Blue
@@ -635,9 +681,9 @@ If ($sslEnforcement -eq "Enabled")
     $execFlexi=$connectionFlexi+$command
     #"`nExecuting [$execFlexi] on [$mysqlFlexi]`n" >> $Log_File 
      "`n**********************************************`n" >> $Log_File    
-    Invoke-Expression "$execFlexi 2>&1 | Out-File -FilePath $Log_File_temp -Append"
-    $MyData = gc $Log_File_temp -Tail 2
-      $MyData|out-File -FilePath $Log_File -Append
+    Invoke-Expression "$execFlexi 2>&1 >> $Log_File"
+    $MyData = gc $Log_File -Tail 2
+     
 $MyDataH=$MyData[0].split("`t")
 $MyDataD=$MyData[1].split("`t")
 
@@ -659,9 +705,9 @@ $command="""call mysql.az_replication_start"""
 $execFlexi=$connectionFlexi+$command
  #"`nExecuting [$execFlexi] on [$mysqlFlexi]`n" >> $Log_File 
  "`n**********************************************`n" >> $Log_File
-Invoke-Expression "$execFlexi 2>&1 | Out-File -FilePath $Log_File_temp -Append"
-$MyData = gc $Log_File_temp -Tail 2
-$MyData|Out-File -FilePath $Log_File -Append
+Invoke-Expression "$execFlexi 2>&1 >> $Log_File"
+$MyData = gc $Log_File -Tail 2
+#$MyData|Out-File -FilePath $Log_File -Append
 $MyDataH=$MyData[0].split("`t")
 $MyDataD=$MyData[1].split("`t")
 
@@ -669,6 +715,8 @@ If ($MyDataH[0] -contains "exception")
 {
 Write-host "`nFailed to execute ""call mysql.az_replication_start""`n" -ForegroundColor Red
 write-host "Error Message:"$MyDataD[2] -ForegroundColor Red
+$Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$MyDataD[2]"}
+
     
 }
 else
@@ -684,12 +732,9 @@ $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="SUCC
 else
 {
               
-              $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="NA"}
+              $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$errorMessage"}
     
 }
-if (Test-Path $Log_File_temp) {
-        Remove-Item $Log_File_temp
-    } 
 
 }
 
