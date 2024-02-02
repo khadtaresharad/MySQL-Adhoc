@@ -3,7 +3,7 @@
 #  Schedule       : Ad-Hoc / On-Demand
 #  Date           : 05-DEC-2023
 #  Author         : Madan Agrawal
-#  Version        : 1.1
+#  Version        : 2.1
 #   
 #  INPUT          : NONE
 #  VARIABLE       : NONE
@@ -347,15 +347,17 @@ else
   {
     
 		$hostname=$mysql.'Host_Name'
+        $hostname1=$hostname.split('.')[0]
+        $Log_File=$Folder+"\Output\"+$hostname1+"_"+"$Outdate.log"  
      write-host "`n`n-----------------------------------------------------------------------------------------------------------"
      write-host "Processing Source Single server [$hostname]              "
      write-host "-----------------------------------------------------------------------------------------------------------"
 
-        $SingleServerErr="$PSScriptRoot\output\$hostname"+"_"+"$Outdate.log"
+        
 		if ([string]::IsNullOrWhitespace($hostname)){
 			Write-Host "'Host_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
                $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="Host_Name' is not valid"}
-                Set-Content -Path $SingleServerErr -Value "Error: 'Host_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
+                Set-Content -Path $Log_File -Value "Server - $hostname `n`n`nError: 'Host_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
 			Continue
 		}
 		
@@ -363,7 +365,7 @@ else
 		if ([string]::IsNullOrWhitespace($MysqlUID)){
 			Write-Host "'User_ID' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
             $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'User_ID' is not valid"}
-            Set-Content -Path $SingleServerErr -Value "Error: 'User_ID' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
+            Set-Content -Path $Log_File -Value "Server - $hostname `n`n`nError: 'User_ID' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
 			Continue
 		}
 	
@@ -371,14 +373,14 @@ else
 		if ([string]::IsNullOrWhitespace($MysqlPwd)){
 			Write-Host "'Password' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
             $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'Password' is not valid"}
-            Set-Content -Path $SingleServerErr -Value "Error: 'Password' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
+            Set-Content -Path $Log_File -Value "Server - $hostname `n`n`nError: 'Password' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
 			Continue
 		}
         $DB_Name=$mysql.'DB_Name'
         if ([string]::IsNullOrWhitespace($DB_Name)){
             Write-Host "'DB_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
                   $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'DB_Name' is not valid"}
-                   Set-Content -Path $SingleServerErr -Value "Error: 'DB_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
+                   Set-Content -Path $Log_File -Value "Server - $hostname `n`n`n Error: 'DB_Name' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet."
             Continue
         }
 
@@ -386,7 +388,7 @@ else
 		if ([string]::IsNullOrWhitespace($mysqlFlexi)){
 			Write-Host "'Destination' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red
              $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'Destination' is not valid"}
-              Set-Content -Path $SingleServerErr -Value "Error: 'Destination' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet." 
+              Set-Content -Path $Log_File -Value "Server - $hostname `n`n` Error: 'Destination' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet." 
 			Continue
 		}
 
@@ -394,19 +396,19 @@ else
 		if ([string]::IsNullOrWhitespace($RG)){
 			Write-Host "'Resource Group' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red
             $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'Resource Group' is not valid"}  
-            Set-Content -Path $SingleServerErr -Value "Error: 'Resource Group' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet." 
+            Set-Content -Path $Log_File -Value "Server - $hostname `n`n`n Error: 'Resource Group' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet." 
 			Continue
 		}
         $SSL=$mysql.'SSL_Mode'
         if ([string]::IsNullOrWhitespace($SSL)){
             Write-Host "'SSL_Mode' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet. Kindly check and retrigger the automation  "  -ForegroundColor Red 
             $Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="'SSL_Mode' is not valid"}  
-            Set-Content -Path $SingleServerErr -Value "Error: 'SSL_Mode' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet." 
+            Set-Content -Path $Log_File -Value "Server - $hostname `n`n`n Error: 'SSL_Mode' is not valid in the CMF-MySQL_Single_Server_Input_file.CSV worksheet." 
 			Continue
         }
 
     $port=$mysql.Port
-    $hostname1=$hostname.split('.')[0]
+    
 
     if($port -eq ""){
         $port='3306'
@@ -458,14 +460,10 @@ else
          $pass=$admin_pass
          } 
  
-  $SingleServerInfo="$PSScriptRoot\Output\Single\"+"$hostname"+"_$Outdate.json"
-
-  $FlexServerInfo="$PSScriptRoot\Output\Flexi\$mysqlFlexi.mysql.database.azure.com_$Outdate.json"  
   
-  #$SingleServerErr="$PSScriptRoot\output\$hostname1.Error_log_$Outdate.log"
-  $Log_File=$Folder+"\Output\"+$hostname1+"_"+$mysqlFlexi+"_"+"$Outdate.log"     
-  #$Log_File_temp=$Folder+"\Output\"+$hostname1+"_"+$mysqlFlexi+"_"+"temp_$Outdate.log"  
-    
+  $SingleServerInfo="$PSScriptRoot\Output\Single\"+"$hostname"+"_$Outdate.json"
+  $FlexServerInfo="$PSScriptRoot\Output\Flexi\$mysqlFlexi.mysql.database.azure.com_$Outdate.json"  
+     
     
     #write-host "tier:" $ServerData[0].sku.tier
     #write-host "Compute Generation:" $ServerData[0].sku.family
@@ -496,7 +494,8 @@ else
 
        
      $connectionSingle="mysql --defaults-extra-file=$destinationFilePath  -h $hostname -u $MysqlUID -D $DB_Name --ssl-mode=$SSL -e ""SHOW VARIABLES LIKE 'log_bin'"""
-     
+     "************************ $hostname ****************************** `n">> $Log_File
+     "MYSQL>SHOW VARIABLES LIKE 'log_bin" >> $Log_File
          Invoke-Expression "$connectionSingle 2>&1 >> $Log_File"
          $stat = $LASTEXITCODE
   
@@ -566,7 +565,10 @@ else
         # Record provisiong start time  
     Write-host "`n----------Start Time::$(Get-Date -format 's')-----------`n"
      
+    Write-host "Provisioning Flexible server [$mysqlFlexi] is in progress..." -ForegroundColor Blue
+
    #$Az_import += '; $Success=$? '
+    "$Az_import`n">>$Log_File
 
       $Az_import += " 2>&1 >> $Log_File"
    
@@ -575,7 +577,7 @@ else
     Invoke-Expression $Az_import
     $stat = $LASTEXITCODE 
      #Write-Output "Last operation status: $stat"
-         $Content=gc $Log_File | select-object -skip 4
+         $Content=gc $Log_File | select-object -skip 7
 
           If( $stat -ne 0)
     {
@@ -601,7 +603,6 @@ else
 
 #if provisiong:Success
 
-
 if($stat -eq 0)
 {
    az mysql flexible-server show --ids "/subscriptions/$Subscription/resourceGroups/$RG/providers/Microsoft.DBforMySQL/flexibleServers/$mysqlFlexi" > $FlexServerInfo
@@ -614,13 +615,17 @@ if($stat -eq 0)
 
    $execFlexi=$connectionFlexi+$commandFlexi
 
+  "`n**********************************************`n" >> $Log_File  
+  "MYSQL>call mysql.az_show_binlog_file_and_pos_for_mysql_import" >> $Log_File  
+
    $FlexConnFailed=0
- $tries = 0
+   $tries = 0
+
+
     while ($tries -lt 4) 
     {
        
-                #"`nExecuting [$execFlexi] on [$mysqlFlexi]`n" >> $Log_File    
-                "`n**********************************************`n" >> $Log_File         
+              
               Invoke-Expression "$execFlexi 2>&1 >> $Log_File"
                 $stat = $LASTEXITCODE
                 If( $stat -ne 0)
@@ -655,7 +660,7 @@ if($stat -eq 0)
 if($FlexConnFailed -ne 1)
 {
 Write-host "Executed ""call mysql.az_show_binlog_file_and_pos_for_mysql_import""" -ForegroundColor Blue
- 
+
 $MyData=-split $MyData[1]
 $binlog=$MyData[0]
 $binLogFile=$binlog.substring($binlog.IndexOf("/")+1)
@@ -664,7 +669,8 @@ $Position= $MyData[1]
 Write-host "`nFile:"$binLogFile
 Write-host "Position:"$Position
 
-
+ "`n**********************************************`n" >> $Log_File  
+ 
 If ($sslEnforcement -eq "Enabled")
   {
 
@@ -682,6 +688,7 @@ If ($sslEnforcement -eq "Enabled")
   $command="""call mysql.az_replication_change_master('$hostname', '$uid', '$pass', $port, '$binLogFile', $Position, '$cert')"""
   Write-host "`nExecuting... " -ForegroundColor Blue
   Write-host "call mysql.az_replication_change_master('$hostname', '$uid', '*****', $port, '$binLogFile', $Position, '*****')" -ForegroundColor Blue
+  "MYSQL>call mysql.az_replication_change_master('$hostname', '$uid', '*****', $port, '$binLogFile', $Position, '*****')" >> $Log_File 
 
   }
   else
@@ -689,12 +696,12 @@ If ($sslEnforcement -eq "Enabled")
     $command="""call mysql.az_replication_change_master('$hostname', '$uid', '$pass', $port, '$binLogFile', $Position, '')"""
     Write-host "`nExecuting... " -ForegroundColor Blue
     Write-host "call mysql.az_replication_change_master('$hostname', '$uid', '*****', $port, '$binLogFile', $Position, '')" -ForegroundColor Blue
+     "MYSQL>call mysql.az_replication_change_master('$hostname', '$uid', '*****', $port, '$binLogFile', $Position, '')" >> $Log_File 
   }
 
 
     $execFlexi=$connectionFlexi+$command
     #"`nExecuting [$execFlexi] on [$mysqlFlexi]`n" >> $Log_File 
-     "`n**********************************************`n" >> $Log_File    
     Invoke-Expression "$execFlexi 2>&1 >> $Log_File"
     $MyData = gc $Log_File -Tail 2
      
@@ -705,6 +712,8 @@ If ($MyDataH[0] -contains "exception")
 {
 Write-host "`nFailed to execute ""Call mysql.az_replication_change_master""`n" -ForegroundColor Red
 write-host "Error Message:"$MyDataD[2] -ForegroundColor Red
+$Output_data += New-Object psobject -Property @{Host_Name=$hostname;Status="Failed";Error_msg="$MyDataD[2]"}
+continue
 }
 else
 {
@@ -713,15 +722,15 @@ Write-host $MyDataD[0] -ForegroundColor Green
 
 
 Write-host "`nExecuting ""call mysql.az_replication_start""`n" -ForegroundColor Blue
+ "`n**********************************************`n" >> $Log_File
+"MYSQL>call mysql.az_replication_start" >> $Log_File 
 
 $command="""call mysql.az_replication_start"""
 
 $execFlexi=$connectionFlexi+$command
  #"`nExecuting [$execFlexi] on [$mysqlFlexi]`n" >> $Log_File 
- "`n**********************************************`n" >> $Log_File
 Invoke-Expression "$execFlexi 2>&1 >> $Log_File"
 $MyData = gc $Log_File -Tail 2
-#$MyData|Out-File -FilePath $Log_File -Append
 $MyDataH=$MyData[0].split("`t")
 $MyDataD=$MyData[1].split("`t")
 
@@ -754,6 +763,7 @@ else
 
 Write-host "`nRefer below for final Status table....`n"
 Write-Host ($Output_data | select Host_Name,Status,Error_Msg| Format-Table -AutoSize -wrap| Out-String) 
+if (Test-Path $destinationFilePath) { Remove-Item $destinationFilePath} 
 
 
     Stop-Transcript
