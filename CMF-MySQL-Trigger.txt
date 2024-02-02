@@ -161,14 +161,28 @@ else
      else {Write-Host "There are mismatches in the Csv column . Kindly check and retrigger the automation "  -BackgroundColor Red
            exitCode}
 
+function Test-AzureGUIDformat
+{
+    param ([string]$azguid)
+    
+    $guidPattern = '^[{(]?[0-9A-Fa-f]{8}[-]?([0-9A-Fa-f]{4}[-]?){3}[0-9A-Fa-f]{12}[)}]?$'
+
+    if ($azguid -match $guidPattern) {
+        return $true
+    } else {
+        return $false
+    }
+}
+
+
 $tenant=$ConfigList[0].'Tenant'
-if ([string]::IsNullOrWhitespace($tenant)){
+if (!(Test-AzureGUIDformat -azguid $tenant))  {
 Write-Host "'Tenant' is not valid in the Azure_Subscription worksheet. Kindly check and retrigger the automation  "  -BackgroundColor Red 
 exitCode
 }
 
 $Subscription=$ConfigList[0].'Subscription_ID'
-if ([string]::IsNullOrWhitespace($Subscription)){
+if  (!(Test-AzureGUIDformat -azguid $Subscription))  {
 Write-Host "'Subscription_ID' is not valid in the Azure_Subscription worksheet. Kindly check and retrigger the automation  "  -BackgroundColor Red 
 exitCode
 }
