@@ -19,6 +19,28 @@
 # Usage:
 # Powershell.exe -File .\CMF-MySQL-Trigger.ps1
 #
+
+function Check-AdminPrivileges {
+    $isAdmin = ([System.Security.Principal.WindowsPrincipal] [System.Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+    
+    if (-not $isAdmin) {
+        $confirmation = Read-Host "This script requires administrative privileges. Do you want to run it as an administrator? (Yes/No)"
+        
+        if ($confirmation -eq "Yes" -or $confirmation -eq "Y") {
+            # Relaunch the script as an administrator
+            Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File $($MyInvocation.MyCommand.Path)" -Verb RunAs
+            exit
+        } else {
+            Write-Host "The script requires administrative privileges to run. Exiting..."
+            exit
+        }
+    }
+}
+
+# Call the function to check for admin privileges
+Check-AdminPrivileges
+
+
 $command = @"
     powershell.exe -File .\CMF-MySQL-Trigger.ps1
 "@

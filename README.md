@@ -15,7 +15,7 @@
 	otherwise proceed with next step to generate the input CSV file.
 
 5. 	Execute `powershell .\CMF-MySQL-CLI-Windows.ps1` on command prompt.(for Windows )
-	Execute `pwsh .\CMF-MySQL-CLI-Windows.ps1`(for Linux )
+	Execute `sudo pwsh .\CMF-MySQL-CLI-Windows.ps1`(for Linux )
 	This will generate the CSV input file - "CMF_MySQL_Server_Input_file.csv".
 	Also this will generate the single server info/log to output folder.
    	
