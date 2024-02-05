@@ -142,8 +142,8 @@ exitCode
 }
 
 $Subscription=$ConfigList[0].'Subscription_ID'
-if  (!(Test-AzureGUIDformat -azguid $Subscription))  {
-Write-Host "'Subscription_ID' is not valid in the Azure_Subscription worksheet. Kindly check and retrigger the automation  "  -BackgroundColor Red 
+if ([string]::IsNullOrWhitespace($Subscription)){
+Write-Host "'Subscription_ID' is not valid in the Azure_Subscription worksheet. Kindly check and retrigger the automation&nbsp; "&nbsp; -BackgroundColor Red
 exitCode
 }
 
