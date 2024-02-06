@@ -210,13 +210,9 @@ function Test-AzureGUIDformat
  
  
 $tenant=$ConfigList[0].'Tenant'
-
-if (!(Test-AzureGUIDformat -azguid $tenant))  {
-
+if ([string]::IsNullOrWhitespace($tenant)){
 Write-Host "'Tenant' is not valid in the Azure_Subscription worksheet. Kindly check and retrigger the automation  "  -BackgroundColor Red 
-
 exitCode
-
 }
  
 $Subscription=$ConfigList[0].'Subscription_ID'
