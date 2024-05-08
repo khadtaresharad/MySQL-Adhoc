@@ -1,6 +1,7 @@
 ## MySQL single to MySQL Flexible server migration using Azure CLI
 # Steps To-Do:
 
+
 1.	Download the package zip file provided by CMF team named as `MySQL-Single-to-Flexi .zip`.
 
 2.	Extract the `unzip MySQL-Single-to-Flexi.zip` file.
